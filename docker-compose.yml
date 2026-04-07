@@ -1,0 +1,66 @@
+services:
+  # Metadata Database (MySQL)
+  mysql-db:
+    image: mysql:8.0
+    container_name: multimodal-mysql
+    environment:
+      MYSQL_DATABASE: knowledge_management
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # Vector Database (PgVector)
+  vector-db:
+    image: pgvector/pgvector:pg16
+    container_name: multimodal-pgvector
+    environment:
+      POSTGRES_DB: vector_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "15432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  # Python AI Service
+  python-service:
+    build: ./python-services
+    container_name: multimodal-python
+    ports:
+      - "8000:8000"
+    environment:
+      - CUDA_VISIBLE_DEVICES=""
+    volumes:
+      - ./python-services/models:/app/models
+    depends_on:
+      - vector-db
+
+  # Java Backend Service
+  java-backend:
+    build: ./backend
+    container_name: multimodal-java
+    ports:
+      - "8082:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/knowledge_management?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_AI_VECTORSTORE_PGVECTOR_DATASOURCE_URL=jdbc:postgresql://vector-db:5432/vector_db
+      - MULTIMODAL_PYTHON_SERVICE_BASE_URL=http://python-service:8000
+    depends_on:
+      - mysql-db
+      - vector-db
+      - python-service
+
+  # Vue Frontend Service
+  vue-frontend:
+    build: ./frontend
+    container_name: multimodal-frontend
+    ports:
+      - "5174:80"
+    depends_on:
+      - java-backend
+
+volumes:
+  mysql_data:
+  pg_data:

@@ -1,0 +1,33 @@
+# 量子物理学 / Quantum Physics
+
+## 核心概念 / Core Concepts
+
+### 1. 波粒二象性 / Wave-Particle Duality
+量子物理学的基本原理之一是波粒二象性，即微观粒子既具有波动性又具有粒子性。这一概念最早由德布罗意提出。
+
+One of the fundamental principles of quantum physics is wave-particle duality, which states that microscopic particles exhibit both wave-like and particle-like properties. This concept was first proposed by Louis de Broglie.
+
+### 2. 测不准原理 / Uncertainty Principle
+海森堡测不准原理指出，我们无法同时精确测量粒子的位置和动量。这不是测量技术的限制，而是自然界的基本属性。
+
+Heisenberg's Uncertainty Principle states that we cannot simultaneously measure a particle's position and momentum with perfect accuracy. This is not a limitation of measurement technology, but a fundamental property of nature.
+
+### 3. 量子叠加 / Quantum Superposition
+量子叠加态描述了量子系统可以同时处于多个状态的能力，直到被观测时才坍缩到某一确定状态。薛定谔的猫是这一概念的著名思想实验。
+
+Quantum superposition describes the ability of quantum systems to exist in multiple states simultaneously until observed, at which point they collapse into a definite state. Schrödinger's cat is a famous thought experiment illustrating this concept.
+
+### 4. 量子纠缠 / Quantum Entanglement
+量子纠缠是指两个或多个粒子之间存在的一种特殊关联，即使它们相距遥远，对其中一个粒子的测量也会瞬间影响另一个粒子的状态。
+
+Quantum entanglement refers to a special correlation between two or more particles, where measuring one particle instantaneously affects the state of another, even when they are far apart.
+
+## 应用 / Applications
+量子物理学的应用包括量子计算、量子通信、量子传感器等前沿技术领域。
+
+Applications of quantum physics include quantum computing, quantum communication, quantum sensors, and other cutting-edge technological fields.
+
+
+## 补充说明 50 / Additional Note 50
+这是第50个文档的扩展内容。
+This is extended content for document 50.

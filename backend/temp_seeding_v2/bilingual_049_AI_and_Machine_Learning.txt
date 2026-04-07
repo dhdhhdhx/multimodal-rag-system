@@ -1,0 +1,33 @@
+# 人工智能与机器学习 / AI and Machine Learning
+
+## 定义 / Definition
+人工智能是计算机科学的一个分支，致力于创建能够执行通常需要人类智能的任务的系统。
+
+Artificial Intelligence is a branch of computer science dedicated to creating systems capable of performing tasks that typically require human intelligence.
+
+## 机器学习类型 / Types of Machine Learning
+
+### 1. 监督学习 / Supervised Learning
+监督学习使用标记数据训练模型，通过输入-输出对学习映射关系。常见应用包括图像分类、语音识别等。
+
+Supervised learning trains models using labeled data, learning the mapping between inputs and outputs. Common applications include image classification and speech recognition.
+
+### 2. 无监督学习 / Unsupervised Learning
+无监督学习从未标记的数据中发现模式和结构，如聚类分析和降维。
+
+Unsupervised learning discovers patterns and structures in unlabeled data, such as clustering and dimensionality reduction.
+
+### 3. 强化学习 / Reinforcement Learning
+强化学习通过与环境交互并接收奖励信号来学习最优策略，广泛应用于游戏AI和机器人控制。
+
+Reinforcement learning learns optimal strategies by interacting with an environment and receiving reward signals, widely used in game AI and robotic control.
+
+## 深度学习 / Deep Learning
+深度学习是机器学习的子领域，使用多层神经网络处理复杂数据。卷积神经网络（CNN）和循环神经网络（RNN）是两种重要架构。
+
+Deep learning is a subfield of machine learning that uses multi-layer neural networks to process complex data. Convolutional Neural Networks (CNN) and Recurrent Neural Networks (RNN) are two important architectures.
+
+
+## 补充说明 49 / Additional Note 49
+这是第49个文档的扩展内容。
+This is extended content for document 49.

@@ -1,0 +1,33 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: multimodal-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: knowledge_management
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  pgvector:
+    image: ankane/pgvector:latest
+    container_name: multimodal-pgvector
+    environment:
+      POSTGRES_DB: vector_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:latest
+    container_name: multimodal-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mysql_data:
+  pgvector_data:

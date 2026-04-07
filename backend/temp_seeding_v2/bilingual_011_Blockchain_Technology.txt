@@ -1,0 +1,33 @@
+# 区块链技术 / Blockchain Technology
+
+## 基本原理 / Basic Principles
+区块链是一种分布式账本技术，通过密码学方法确保数据的安全性和不可篡改性。
+
+Blockchain is a distributed ledger technology that ensures data security and immutability through cryptographic methods.
+
+## 核心特征 / Core Features
+
+### 去中心化 / Decentralization
+区块链网络不依赖单一中心机构，由多个节点共同维护，提高了系统的安全性和可靠性。
+
+Blockchain networks do not rely on a single central authority but are maintained by multiple nodes, enhancing system security and reliability.
+
+### 透明性 / Transparency
+所有交易记录对网络参与者可见，但通过加密保护用户隐私。
+
+All transaction records are visible to network participants, while encryption protects user privacy.
+
+### 共识机制 / Consensus Mechanisms
+常见的共识机制包括工作量证明（PoW）、权益证明（PoS）和实用拜占庭容错（PBFT）。
+
+Common consensus mechanisms include Proof of Work (PoW), Proof of Stake (PoS), and Practical Byzantine Fault Tolerance (PBFT).
+
+## 应用领域 / Application Areas
+区块链技术应用于加密货币、供应链管理、智能合约、数字身份验证等多个领域。
+
+Blockchain technology is applied in areas such as cryptocurrency, supply chain management, smart contracts, and digital identity verification.
+
+
+## 补充说明 11 / Additional Note 11
+这是第11个文档的扩展内容。
+This is extended content for document 11.

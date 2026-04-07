@@ -1,0 +1,8 @@
+# Genomics
+
+## 概述 / Overview
+这是关于Genomics的文档 10。
+This is document 10 about Genomics.
+
+详细内容将在后续版本中补充。
+Detailed content will be added in future versions.
