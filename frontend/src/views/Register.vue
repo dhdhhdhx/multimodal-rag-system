@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import api from '../api'
+import api, { setTokens } from '../api'
 import { useRouter } from 'vue-router'
 import { User, Lock, Message, Compass, Postcard } from '@element-plus/icons-vue'
 
@@ -34,8 +34,9 @@ const handleRegister = async () => {
   try {
     const { confirmPassword, ...data } = registerForm.value
     const response = await api.post('/auth/register', data)
-    localStorage.setItem('jwt_token', response.data.token)
-    localStorage.setItem('user_info', JSON.stringify(response.data.user))
+    const { token, refreshToken, expiresIn, user } = response.data
+    setTokens(token, refreshToken, expiresIn || 3600)
+    localStorage.setItem('user_info', JSON.stringify(user))
     ElMessage.success('注册成功！欢迎加入')
     router.push('/')
   } catch (error: any) {

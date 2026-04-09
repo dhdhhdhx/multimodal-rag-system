@@ -68,31 +68,33 @@ public class AuthService {
         );
         
         String token = tokenProvider.generateToken(authentication);
-        
-        return buildAuthResponse(user, token);
+        String refreshToken = tokenProvider.generateRefreshToken(authentication);
+
+        return buildAuthResponse(user, token, refreshToken);
     }
-    
+
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
-        
+
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String token = tokenProvider.generateToken(authentication);
-        
+        String accessToken = tokenProvider.generateToken(authentication);
+        String refreshToken = tokenProvider.generateRefreshToken(authentication);
+
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         log.info("User logged in: {}", user.getUsername());
-        
-        return buildAuthResponse(user, token);
+
+        return buildAuthResponse(user, accessToken, refreshToken);
     }
     
-    private AuthResponse buildAuthResponse(User user, String token) {
+    private AuthResponse buildAuthResponse(User user, String accessToken, String refreshToken) {
         Set<String> roleNames = user.getRoles().stream()
                 .map(Role::getName)
                 .collect(Collectors.toSet());
-        
+
         UserDTO userDTO = UserDTO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -100,14 +102,57 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .isActive(user.getIsActive())
                 .createdAt(user.getCreatedAt())
-                .roles(new ArrayList<>(roleNames))  // Convert Set to List
+                .roles(new ArrayList<>(roleNames))
                 .build();
-        
+
         return AuthResponse.builder()
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken)
                 .type("Bearer")
+                .expiresIn(tokenProvider.getAccessTokenExpirationSeconds())
                 .user(userDTO)
                 .roles(roleNames)
                 .build();
+    }
+
+    /**
+     * Refresh access token using a valid refresh token.
+     * Returns new access + refresh token pair.
+     */
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        // Validate the refresh token
+        if (!tokenProvider.validateToken(refreshToken)) {
+            throw new RuntimeException("无效的刷新令牌");
+        }
+        if (!tokenProvider.isRefreshToken(refreshToken)) {
+            throw new RuntimeException("该令牌不是刷新令牌");
+        }
+
+        String username = tokenProvider.getUsernameFromToken(refreshToken);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("用户已被禁用");
+        }
+
+        // Build authentication to generate new tokens
+        String roles = user.getRoles().stream()
+                .map(role -> "ROLE_" + role.getName())
+                .collect(Collectors.joining(","));
+
+        String newAccessToken = tokenProvider.generateAccessToken(username, roles);
+
+        // Rotate refresh token for security
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                user.getUsername(), null, user.getRoles().stream()
+                .map(role -> new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role.getName()))
+                .collect(Collectors.toList())
+        );
+        String newRefreshToken = tokenProvider.generateRefreshToken(authentication);
+
+        log.info("Token refreshed for user: {}", user.getUsername());
+
+        return AuthResponse.refreshOnly(newAccessToken, newRefreshToken, tokenProvider.getAccessTokenExpirationSeconds());
     }
 }

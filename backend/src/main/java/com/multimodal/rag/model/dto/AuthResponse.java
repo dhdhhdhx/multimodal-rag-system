@@ -13,8 +13,20 @@ import java.util.Set;
 @AllArgsConstructor
 public class AuthResponse {
     private String token;
+    private String refreshToken;
     @Builder.Default
     private String type = "Bearer";
+    private long expiresIn; // access token expiration in seconds
     private UserDTO user;
     private Set<String> roles;
+
+    /** Convenience builder for refresh-only response (no user info needed) */
+    public static AuthResponse refreshOnly(String token, String refreshToken, long expiresIn) {
+        return AuthResponse.builder()
+                .token(token)
+                .refreshToken(refreshToken)
+                .type("Bearer")
+                .expiresIn(expiresIn)
+                .build();
+    }
 }

@@ -91,12 +91,13 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Menu as MenuIcon } from '@element-plus/icons-vue'
+import { clearTokens, getAccessToken } from '../api'
 
 const showMobileMenu = ref(false)
 
 const router = useRouter()
 
-const isAuthenticated = computed(() => !!localStorage.getItem('jwt_token'))
+const isAuthenticated = computed(() => !!getAccessToken())
 
 const username = computed(() => {
   try {
@@ -114,8 +115,7 @@ const isAdmin = computed(() => {
 
 const handleCommand = (cmd: string) => {
   if (cmd === 'logout') {
-    localStorage.removeItem('jwt_token')
-    localStorage.removeItem('user_info')
+    clearTokens()
     router.push('/login')
   } else if (cmd === 'admin') {
     router.push('/admin')

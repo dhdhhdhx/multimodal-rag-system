@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import api from '../api'
+import api, { setTokens } from '../api'
 import { useRouter } from 'vue-router'
 import { User, Lock, Compass } from '@element-plus/icons-vue'
 
@@ -17,9 +17,10 @@ const handleLogin = async () => {
   loading.value = true
   try {
     const response = await api.post('/auth/login', loginForm.value)
-    localStorage.setItem('jwt_token', response.data.token)
-    localStorage.setItem('user_info', JSON.stringify(response.data.user))
-    ElMessage.success(`欢迎回来，${response.data.user.fullName || response.data.user.username}！`)
+    const { token, refreshToken, expiresIn, user } = response.data
+    setTokens(token, refreshToken, expiresIn || 3600)
+    localStorage.setItem('user_info', JSON.stringify(user))
+    ElMessage.success(`欢迎回来，${user.fullName || user.username}！`)
     router.push('/')
   } catch (error: any) {
     ElMessage.error(error.response?.data?.message || '登录失败，请检查用户名和密码')

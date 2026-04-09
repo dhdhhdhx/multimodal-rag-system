@@ -91,7 +91,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../api'
+import api, { getAccessToken } from '../api'
 import MarkdownIt from 'markdown-it'
 import UserDashboard from '../components/UserDashboard.vue'
 import DiscoverySection from '../components/DiscoverySection.vue'
@@ -121,9 +121,9 @@ const isAdminUser = computed(() => {
   } catch (e) { return false }
 })
 
-const uploadHeaders = ref({
-  Authorization: `Bearer ${localStorage.getItem('jwt_token') || ''}`
-})
+const uploadHeaders = computed(() => ({
+  Authorization: `Bearer ${getAccessToken() || ''}`
+}))
 
 const fetchDocuments = async () => {
   try {

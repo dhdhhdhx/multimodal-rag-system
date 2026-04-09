@@ -15,6 +15,7 @@ import AdminDocuments from './views/admin/AdminDocuments.vue'
 import AdminTags from './views/admin/AdminTags.vue'
 import AdminStats from './views/admin/AdminStats.vue'
 import { isAdmin } from './utils/auth'
+import { getAccessToken } from './api'
 
 const routes = [
     {
@@ -61,7 +62,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-    const token = localStorage.getItem('jwt_token')
+    const token = getAccessToken()
 
     if (to.meta.requiresAuth && !token) {
         next('/login')

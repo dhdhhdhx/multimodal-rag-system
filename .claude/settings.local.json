@@ -3,7 +3,11 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(python3:*)",
-      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py:*)"
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py:*)",
+      "Skill(ui-ux-pro-max)",
+      "Bash(python scripts/search.py:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(mvn compile:*)"
     ]
   }
 }

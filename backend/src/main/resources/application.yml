@@ -1,6 +1,12 @@
 server:
   port: 8080
 
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:multimodal-rag-secret-key-change-in-production-min-256-bits}
+  expiration: ${JWT_EXPIRATION:3600000}           # 1 hour (access token)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days (refresh token)
+
 spring:
   application:
     name: multimodal-rag-system

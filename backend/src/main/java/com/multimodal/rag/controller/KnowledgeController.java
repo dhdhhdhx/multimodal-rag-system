@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.net.MalformedURLException;
 
@@ -93,7 +94,8 @@ public class KnowledgeController {
 
     @GetMapping("/view/{id}")
     @Transactional
-    public ResponseEntity<?> view(@PathVariable Long id) throws MalformedURLException {
+    public ResponseEntity<?> view(@PathVariable Long id,
+                                   @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
@@ -119,7 +121,7 @@ public class KnowledgeController {
         logEntry.setAccessType(DocumentAccessLog.AccessType.VIEW);
         accessLogRepository.save(logEntry);
 
-        return serveFile(doc);
+        return serveFile(doc, proxy);
     }
 
     /** Get extracted content for authenticated user (own doc or public doc) */
@@ -201,7 +203,8 @@ public class KnowledgeController {
     /** Public view — no auth required, only works for public documents */
     @GetMapping("/public/view/{id}")
     @Transactional
-    public ResponseEntity<?> publicView(@PathVariable Long id) throws MalformedURLException {
+    public ResponseEntity<?> publicView(@PathVariable Long id,
+                                        @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         if (!doc.isShared()) {
@@ -210,7 +213,7 @@ public class KnowledgeController {
         doc.setViewCount((doc.getViewCount() != null ? doc.getViewCount() : 0) + 1);
         documentRepository.save(doc);
 
-        return serveFile(doc);
+        return serveFile(doc, proxy);
     }
 
     /** Get document detail (extracted content) — public doc */
@@ -250,7 +253,7 @@ public class KnowledgeController {
 
     private static final MediaType TEXT_UTF8 = new MediaType("text", "plain", java.nio.charset.StandardCharsets.UTF_8);
 
-    private ResponseEntity<?> serveFile(MultimodalDocument doc) throws MalformedURLException {
+    private ResponseEntity<?> serveFile(MultimodalDocument doc, boolean proxy) throws MalformedURLException {
         String storagePath = doc.getFilePath();
 
         // Seed documents with no real file — return the extracted content as text
@@ -261,14 +264,29 @@ public class KnowledgeController {
                     .body(content);
         }
 
-        // If stored in OSS, redirect to pre-signed URL
+        // If stored in OSS
         if (storagePath.startsWith("oss://")) {
             String ossKey = storagePath.substring(6);
             try {
-                String presignedUrl = ossStorageService.generatePresignedUrl(ossKey);
-                return ResponseEntity.status(302)
-                        .header(HttpHeaders.LOCATION, presignedUrl)
-                        .build();
+                if (proxy) {
+                    // Proxy mode: backend fetches from OSS and streams back to client
+                    // This avoids CORS issues and expired presigned URLs on the client side
+                    InputStream is = ossStorageService.getFileStream(ossKey);
+                    String contentType = guessContentType(ossKey);
+                    byte[] bytes = is.readAllBytes();
+                    is.close();
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.parseMediaType(contentType))
+                            .header(HttpHeaders.CONTENT_DISPOSITION,
+                                    "inline; filename=\"" + doc.getFileName() + "\"")
+                            .body(bytes);
+                } else {
+                    // Redirect mode: return 302 to a fresh presigned URL
+                    String presignedUrl = ossStorageService.generatePresignedUrl(ossKey);
+                    return ResponseEntity.status(302)
+                            .header(HttpHeaders.LOCATION, presignedUrl)
+                            .build();
+                }
             } catch (Exception e) {
                 // OSS file not found, return extracted content
                 String content = doc.getExtractedContent() != null ? doc.getExtractedContent() : "文件不可用";
@@ -288,5 +306,31 @@ public class KnowledgeController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
                 .body(resource);
+    }
+
+    /** Guess content type from OSS key (file extension) */
+    private static String guessContentType(String key) {
+        String lower = key.toLowerCase();
+        if (lower.endsWith(".pdf")) return "application/pdf";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        if (lower.endsWith(".mp4")) return "video/mp4";
+        if (lower.endsWith(".webm")) return "video/webm";
+        if (lower.endsWith(".avi")) return "video/x-msvideo";
+        if (lower.endsWith(".mov")) return "video/quicktime";
+        if (lower.endsWith(".mp3")) return "audio/mpeg";
+        if (lower.endsWith(".wav")) return "audio/wav";
+        if (lower.endsWith(".ogg")) return "audio/ogg";
+        if (lower.endsWith(".txt") || lower.endsWith(".md")) return "text/plain; charset=utf-8";
+        if (lower.endsWith(".csv")) return "text/csv; charset=utf-8";
+        if (lower.endsWith(".json")) return "application/json";
+        if (lower.endsWith(".xml")) return "application/xml";
+        if (lower.endsWith(".doc") || lower.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lower.endsWith(".xls") || lower.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        if (lower.endsWith(".ppt") || lower.endsWith(".pptx")) return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+        return "application/octet-stream";
     }
 }

@@ -1,3 +1,5 @@
+import { getAccessToken, clearTokens } from '../api'
+
 export interface User {
     id: number
     username: string
@@ -25,7 +27,7 @@ export const getCurrentUser = (): User | null => {
 }
 
 export const getToken = (): string | null => {
-    return localStorage.getItem('jwt_token')
+    return getAccessToken()
 }
 
 export const hasRole = (roleName: string): boolean => {
@@ -43,16 +45,12 @@ export const isAdmin = (): boolean => {
 }
 
 export const hasPermission = (_permissionName: string): boolean => {
-    // Note: With string roles, we check for basic admin or specific roles 
-    // that imply permissions. For granular permissions, we'd need them in the User JSON.
     const user = getCurrentUser()
     if (!user || !user.roles) return false
-    // Temporary fallback: if admin, they have all permissions
     if (user.roles.includes('ADMIN')) return true
     return false
 }
 
 export const logout = () => {
-    localStorage.removeItem('jwt_token')
-    localStorage.removeItem('user_info')
+    clearTokens()
 }

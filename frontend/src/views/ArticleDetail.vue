@@ -66,7 +66,7 @@ import { useRoute } from 'vue-router'
 import { ArrowLeft, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
-import api from '../api'
+import api, { getAccessToken } from '../api'
 
 const route = useRoute()
 
@@ -129,69 +129,75 @@ const renderContent = (content: string) => {
 
 const viewOriginal = async () => {
   const id = route.params.id as string
+  const fileName = article.value?.fileName || '文件'
+  const token = getAccessToken()
 
-  const tryView = async (url: string, options?: RequestInit) => {
-    const res = await fetch(url, { redirect: 'manual', ...options })
+  // Helper: open URL via hidden <a> element so browser handles download natively
+  const openFileLink = (url: string, name: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.target = '_blank'
+    a.rel = 'noopener noreferrer'
+    a.download = name
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
 
-    // 302 redirect — OSS pre-signed URL, open directly in new tab
+  // Try to get a redirect URL from the backend, then let the browser navigate to it
+  // We only use fetch with redirect:'manual' to capture the 302 Location header —
+  // we never fetch the actual file content through JavaScript.
+  const tryOpenViaBackend = async (url: string, headers?: Record<string, string>): Promise<boolean> => {
+    const res = await fetch(url, { headers, redirect: 'manual' })
     if (res.status === 302 || res.status === 301 || res.status === 307) {
       const location = res.headers.get('Location')
       if (location) {
-        window.open(location, '_blank')
-        return
+        openFileLink(location, fileName)
+        return true
       }
     }
-
-    if (!res.ok) return false
-
-    const contentType = res.headers.get('Content-Type') || ''
-    const blob = await res.blob()
-
-    // text/plain means no real file — extracted content only, inform user
-    if (contentType.includes('text/plain') && blob.size > 0) {
-      const text = await blob.text()
-      if (text.length < 200) {
-        ElMessage.warning('该文档没有原始文件，仅支持在线预览')
-      } else {
-        // Open text content in a new tab for reading
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${article.value?.fileName || '文档内容'}</title>
-          <style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;}</style></head>
-          <body>${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</body></html>`
-        const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-        window.open(blobUrl, '_blank')
+    // If backend returned the file directly (proxy mode or seed doc with no file),
+    // it will be text/plain content — open as HTML preview
+    if (res.ok) {
+      const contentType = res.headers.get('Content-Type') || ''
+      if (contentType.includes('text/plain')) {
+        const text = await res.text()
+        if (text.length < 200) {
+          ElMessage.warning('该文档没有原始文件，仅支持在线预览')
+        } else {
+          const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title>
+            <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#1e293b;background:#f8fafc;}</style></head>
+            <body>${escaped}</body></html>`
+          const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+          openFileLink(blobUrl, fileName)
+        }
+        return true
       }
-      return
     }
-
-    // Binary file (pdf, image, video, etc.)
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
-    URL.revokeObjectURL(blobUrl)
-    return true
+    if (res.status === 403) { ElMessage.error('无权查看此文件'); return true }
+    if (res.status === 404) { ElMessage.error('文件不存在，可能已被删除'); return true }
+    return false
   }
 
-  // Try public endpoint first
+  // Strategy 1: Public endpoint (no auth needed for public docs)
   try {
-    const opened = await tryView(`/api/knowledge/public/view/${id}`)
+    const opened = await tryOpenViaBackend(`/api/knowledge/public/view/${id}`)
     if (opened) return
-  } catch { /* fall through to auth endpoint */ }
+  } catch { /* fall through */ }
 
-  // Fall back to authenticated endpoint
-  const token = localStorage.getItem('jwt_token')
-  if (!token) {
-    ElMessage.error('请先登录后查看')
-    return
+  // Strategy 2: Authenticated endpoint (use token from centralized store)
+  if (token) {
+    try {
+      const opened = await tryOpenViaBackend(`/api/knowledge/view/${id}`, {
+        'Authorization': `Bearer ${token}`
+      })
+      if (opened) return
+    } catch { /* fall through */ }
   }
-  try {
-    const opened = await tryView(`/api/knowledge/view/${id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    if (!opened) {
-      ElMessage.error('无法查看原始文件')
-    }
-  } catch {
-    ElMessage.error('请求失败，请稍后重试')
-  }
+
+  ElMessage.error('请先登录后查看')
 }
 
 onMounted(async () => {
