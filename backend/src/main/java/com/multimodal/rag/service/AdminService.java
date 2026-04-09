@@ -179,8 +179,10 @@ public class AdminService {
                 .collect(Collectors.toList());
 
         Map<Long, Long> queryCountByUser = recentQueries.stream()
+                .filter(l -> l.getUserId() != null)
                 .collect(Collectors.groupingBy(QueryLog::getUserId, Collectors.counting()));
         Map<Long, Long> accessCountByUser = recentAccesses.stream()
+                .filter(l -> l.getUserId() != null)
                 .collect(Collectors.groupingBy(DocumentAccessLog::getUserId, Collectors.counting()));
 
         return users.stream().map(user -> {
