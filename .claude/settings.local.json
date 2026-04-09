@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(python3:*)",
+      "Bash(python .claude/skills/ui-ux-pro-max/scripts/search.py:*)"
+    ]
+  }
+}

@@ -60,6 +60,11 @@
             <el-button link type="primary" size="small" @click="startEdit(row)">编辑</el-button>
             <el-button link size="small" @click="previewDoc(row)">查看</el-button>
             <el-button link size="small" @click="editContent(row)">编辑内容</el-button>
+            <el-popconfirm title="确定要删除此文档吗？" @confirm="handleDeleteDoc(row.id)">
+              <template #reference>
+                <el-button link type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
           <template v-else>
             <el-button link type="success" size="small" @click="saveEdit(row)">保存</el-button>
@@ -101,7 +106,7 @@ import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import api from '../../api'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderMd = (s: string) => s ? md.render(s) : '<p>暂无内容</p>'
 
 const documents = ref<any[]>([])
@@ -156,6 +161,14 @@ const saveEdit = async (row: any) => {
     row._editing = false
     ElMessage.success('已保存')
   } catch { ElMessage.error('保存失败') }
+}
+
+const handleDeleteDoc = async (id: number) => {
+  try {
+    await api.delete(`/admin/documents/${id}`)
+    ElMessage.success('已删除')
+    fetchDocs(currentPage.value)
+  } catch { ElMessage.error('删除失败') }
 }
 
 // Preview

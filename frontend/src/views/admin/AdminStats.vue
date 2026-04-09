@@ -86,12 +86,13 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 12px;
+  padding: 6px 14px;
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 20px;
   color: #166534;
   font-weight: 500;
+  min-height: 44px;
 }
 .keyword-pill small { font-size: 10px; opacity: 0.6; }
 .empty-hint { color: #94a3b8; text-align: center; padding: 40px 0; }

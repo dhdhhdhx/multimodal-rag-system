@@ -15,9 +15,10 @@
   --bg-card: #ffffff;
   --text-primary: #1e293b;
   --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --border-color: #e2e8f0;
   --accent: #10b981;
+  --accent-hover: #059669;
   --accent-light: #ecfdf5;
   --accent-blue: #3b82f6;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
@@ -26,6 +27,16 @@
   --radius: 8px;
   --radius-lg: 12px;
   --max-width: 1200px;
+  --z-dropdown: 50;
+  --z-sticky: 100;
+  --z-overlay: 200;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 40px;
 }
 
 * { box-sizing: border-box; }
@@ -47,6 +58,10 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
 
 /* Element Plus Light Overrides */
 .el-input__wrapper {
@@ -58,4 +73,14 @@ body {
 }
 .el-input__wrapper.is-focus {
   box-shadow: 0 0 0 1px var(--accent) inset !important;
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

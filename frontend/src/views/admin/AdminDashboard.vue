@@ -98,4 +98,5 @@ onMounted(async () => {
 .recent-section { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
 .recent-section h3 { margin: 0 0 16px; font-size: 16px; color: #1e293b; }
 @media (max-width: 1000px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
 </style>

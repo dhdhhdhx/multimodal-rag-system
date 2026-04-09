@@ -1,27 +1,34 @@
 <template>
   <div class="admin-layout">
-    <aside class="admin-sidebar">
+    <!-- Mobile overlay -->
+    <div
+      v-if="isMobile && showSidebar"
+      class="sidebar-overlay"
+      @click="showSidebar = false"
+    ></div>
+    <!-- Sidebar -->
+    <aside class="admin-sidebar" :class="{ 'is-visible': showSidebar }">
       <div class="sidebar-header">
-        <router-link to="/" class="back-link">
+        <router-link to="/" class="back-link" @click="onNavClick">
           <el-icon><ArrowLeft /></el-icon>
           <span>返回前台</span>
         </router-link>
         <h2 class="sidebar-title">后台管理</h2>
       </div>
       <nav class="sidebar-nav">
-        <router-link to="/admin" exact-active-class="active" class="nav-item">
+        <router-link to="/admin" exact-active-class="active" class="nav-item" @click="onNavClick">
           <el-icon><DataBoard /></el-icon><span>仪表盘</span>
         </router-link>
-        <router-link to="/admin/users" active-class="active" class="nav-item">
+        <router-link to="/admin/users" active-class="active" class="nav-item" @click="onNavClick">
           <el-icon><User /></el-icon><span>账号管理</span>
         </router-link>
-        <router-link to="/admin/documents" active-class="active" class="nav-item">
+        <router-link to="/admin/documents" active-class="active" class="nav-item" @click="onNavClick">
           <el-icon><Document /></el-icon><span>文档管理</span>
         </router-link>
-        <router-link to="/admin/tags" active-class="active" class="nav-item">
+        <router-link to="/admin/tags" active-class="active" class="nav-item" @click="onNavClick">
           <el-icon><PriceTag /></el-icon><span>标签管理</span>
         </router-link>
-        <router-link to="/admin/stats" active-class="active" class="nav-item">
+        <router-link to="/admin/stats" active-class="active" class="nav-item" @click="onNavClick">
           <el-icon><TrendCharts /></el-icon><span>数据统计</span>
         </router-link>
       </nav>
@@ -33,14 +40,47 @@
       </div>
     </aside>
     <main class="admin-main">
+      <button v-if="isMobile" class="hamburger-btn" @click="showSidebar = !showSidebar">
+        <el-icon :size="22"><Menu /></el-icon>
+      </button>
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ArrowLeft, DataBoard, User, Document, PriceTag, TrendCharts } from '@element-plus/icons-vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ArrowLeft, DataBoard, User, Document, PriceTag, TrendCharts, Menu } from '@element-plus/icons-vue'
+
+const MOBILE_BREAKPOINT = 768
+
+const isMobile = ref(false)
+const showSidebar = ref(true)
+
+const checkMobile = () => {
+  const wasMobile = isMobile.value
+  isMobile.value = window.innerWidth < MOBILE_BREAKPOINT
+  if (isMobile.value && !wasMobile) {
+    showSidebar.value = false
+  } else if (!isMobile.value && wasMobile) {
+    showSidebar.value = true
+  }
+}
+
+const onNavClick = () => {
+  if (isMobile.value) {
+    showSidebar.value = false
+  }
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', checkMobile)
+})
 
 const username = computed(() => {
   try {
@@ -50,6 +90,10 @@ const username = computed(() => {
 </script>
 
 <style scoped>
+:root {
+  --z-overlay: 99;
+}
+
 .admin-layout {
   display: flex;
   min-height: 100vh;
@@ -138,5 +182,55 @@ const username = computed(() => {
   flex: 1;
   margin-left: 220px;
   padding: 28px 32px;
+}
+
+/* Mobile overlay */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: var(--z-overlay);
+}
+
+/* Hamburger button */
+.hamburger-btn {
+  display: none;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.hamburger-btn:hover {
+  background: #334155;
+}
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: calc(var(--z-overlay) + 1);
+  }
+  .admin-sidebar.is-visible {
+    transform: translateX(0);
+  }
+  .admin-main {
+    margin-left: 0;
+    padding: 20px 16px;
+    position: relative;
+  }
+  .hamburger-btn {
+    display: flex;
+  }
 }
 </style>

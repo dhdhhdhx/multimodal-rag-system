@@ -79,29 +79,29 @@ const goToLogin = () => { router.push('/login') }
         <p class="card-subtitle">填写以下信息完成注册</p>
         <el-form :model="registerForm" @submit.prevent="handleRegister" class="register-form">
           <div class="form-field">
-            <label class="field-label">用户名 <span class="req">*</span></label>
-            <el-input v-model="registerForm.username" placeholder="请输入用户名" :prefix-icon="User" size="large" />
+            <label class="field-label" for="reg-username">用户名 <span class="req">*</span></label>
+            <el-input id="reg-username" v-model="registerForm.username" placeholder="请输入用户名" :prefix-icon="User" size="large" />
           </div>
           <div class="form-field">
-            <label class="field-label">邮箱 <span class="req">*</span></label>
-            <el-input v-model="registerForm.email" type="email" placeholder="请输入邮箱" :prefix-icon="Message" size="large" />
+            <label class="field-label" for="reg-email">邮箱 <span class="req">*</span></label>
+            <el-input id="reg-email" v-model="registerForm.email" type="email" placeholder="请输入邮箱" :prefix-icon="Message" size="large" />
           </div>
           <div class="form-field">
-            <label class="field-label">姓名</label>
-            <el-input v-model="registerForm.fullName" placeholder="请输入姓名（可选）" :prefix-icon="Postcard" size="large" />
+            <label class="field-label" for="reg-fullname">姓名</label>
+            <el-input id="reg-fullname" v-model="registerForm.fullName" placeholder="请输入姓名（可选）" :prefix-icon="Postcard" size="large" />
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label class="field-label">密码 <span class="req">*</span></label>
-              <el-input v-model="registerForm.password" type="password" placeholder="至少6位" :prefix-icon="Lock" size="large" show-password />
+              <label class="field-label" for="reg-password">密码 <span class="req">*</span></label>
+              <el-input id="reg-password" v-model="registerForm.password" type="password" placeholder="至少6位" :prefix-icon="Lock" size="large" show-password />
             </div>
             <div class="form-field">
-              <label class="field-label">确认密码 <span class="req">*</span></label>
-              <el-input v-model="registerForm.confirmPassword" type="password" placeholder="再次输入" :prefix-icon="Lock" size="large" show-password @keyup.enter="handleRegister" />
+              <label class="field-label" for="reg-confirm">确认密码 <span class="req">*</span></label>
+              <el-input id="reg-confirm" v-model="registerForm.confirmPassword" type="password" placeholder="再次输入" :prefix-icon="Lock" size="large" show-password @keyup.enter="handleRegister" />
             </div>
           </div>
           <el-button type="primary" :loading="loading" @click="handleRegister" size="large" class="register-btn">注 册</el-button>
-          <div class="login-link">已有账号？<a @click="goToLogin">立即登录</a></div>
+          <div class="login-link">已有账号？<router-link to="/login">立即登录</router-link></div>
         </el-form>
       </div>
     </div>
@@ -157,4 +157,5 @@ const goToLogin = () => { router.push('/login') }
 .login-link a { color: #10b981; cursor: pointer; text-decoration: none; font-weight: 500; }
 .login-link a:hover { text-decoration: underline; }
 @media (max-width: 900px) { .register-left { display: none; } .register-right { width: 100%; } }
+@media (max-width: 600px) { .form-row { flex-direction: column; } }
 </style>

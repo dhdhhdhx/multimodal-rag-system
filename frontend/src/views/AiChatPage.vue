@@ -63,9 +63,11 @@
         </div>
         <div class="chat-input-area">
           <div class="input-wrap">
-            <input v-model="userInput" class="chat-input"
+            <textarea v-model="userInput" class="chat-input"
               placeholder="输入你的问题..."
-              @keydown="handleKeydown" />
+              rows="1"
+              @keydown="handleKeydown"
+              @input="autoGrow" ref="chatInputRef" />
             <button class="send-btn" @click="sendMessage" :disabled="loading || !userInput.trim()">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -86,7 +88,7 @@ import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import api from '../api'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
 interface ChatMsg {
   role: string
@@ -98,6 +100,7 @@ const chatHistory = ref<ChatMsg[]>([])
 const userInput = ref('')
 const loading = ref(false)
 const messageBox = ref<HTMLElement | null>(null)
+const chatInputRef = ref<HTMLTextAreaElement | null>(null)
 const showSidebar = ref(true)
 
 // Session management
@@ -150,6 +153,13 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+const autoGrow = () => {
+  const el = chatInputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 5 * parseFloat(getComputedStyle(el).lineHeight)) + 'px'
+}
+
 const fetchSessions = async () => {
   try {
     const res = await api.get('/chat/sessions')
@@ -192,6 +202,7 @@ const sendMessage = async () => {
   const query = userInput.value
   chatHistory.value.push({ role: 'user', content: query })
   userInput.value = ''
+  if (chatInputRef.value) chatInputRef.value.style.height = 'auto'
   loading.value = true
   await scrollToBottom()
   try {
@@ -274,9 +285,13 @@ onMounted(fetchSessions)
 .session-delete {
   position: absolute; right: 8px; top: 12px;
   color: var(--text-muted); cursor: pointer; font-size: 12px;
-  opacity: 0; transition: opacity 0.2s;
+  opacity: 0.6; transition: opacity 0.2s;
 }
 .session-item:hover .session-delete { opacity: 1; }
+@media (max-width: 767px) {
+  .session-delete { opacity: 0.6; }
+  .session-item:hover .session-delete { opacity: 1; }
+}
 .empty-sessions { text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 13px; }
 
 /* Main chat */
@@ -400,7 +415,7 @@ onMounted(fetchSessions)
 }
 .input-wrap {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -415,21 +430,27 @@ onMounted(fetchSessions)
   font-size: 14px;
   background: transparent;
   color: var(--text-primary);
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.5;
+  padding: 5px 0;
+  max-height: calc(5 * 1.5em);
 }
 .chat-input::placeholder { color: var(--text-muted); }
 .send-btn {
   width: 40px; height: 40px;
   border-radius: 50%;
   border: none;
-  background: #7dd3fc;
+  background: var(--accent);
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  flex-shrink: 0;
 }
-.send-btn:hover { background: var(--accent); }
+.send-btn:hover { background: var(--accent-hover); }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .input-hint {
   text-align: center;

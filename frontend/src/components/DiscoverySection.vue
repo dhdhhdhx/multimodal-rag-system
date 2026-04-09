@@ -1,7 +1,7 @@
 <template>
   <div class="discovery-container">
     <div class="header glass-card">
-      <h3 class="primary-gradient-text">探索知识宇宙 <span>🚀</span></h3>
+      <h3 class="primary-gradient-text">探索知识宇宙</h3>
       <p class="subtitle">深度学习与多模态 RAG 技术前沿发现</p>
     </div>
 
@@ -20,7 +20,7 @@
             <div v-for="doc in discoveryData.featured" :key="doc.id" class="recommend-card glass-card">
               <div class="card-badge featured">精选</div>
               <div class="card-click-area" @click="handleDocClick(doc)">
-                <div class="card-icon">{{ getModalityIcon(doc.fileType) }}</div>
+                <div class="card-icon"><span v-html="getModalityIcon(doc.fileType)"></span></div>
                 <h4 class="doc-title">{{ doc.fileName }}</h4>
                 <div class="doc-preview">{{ getShortPreview(doc.extractedContent) }}</div>
               </div>
@@ -44,7 +44,7 @@
         <div class="card-grid">
           <div v-for="doc in discoveryData.collaborative" :key="doc.id" class="recommend-card glass-card">
             <div class="card-click-area" @click="handleDocClick(doc)">
-              <div class="card-icon">{{ getModalityIcon(doc.fileType) }}</div>
+              <div class="card-icon"><span v-html="getModalityIcon(doc.fileType)"></span></div>
               <h4 class="doc-title">{{ doc.fileName }}</h4>
               <div class="doc-preview">{{ getShortPreview(doc.extractedContent) }}</div>
             </div>
@@ -68,7 +68,7 @@
         <div class="card-grid">
           <div v-for="doc in discoveryData.guessYouLike" :key="doc.id" class="recommend-card glass-card">
             <div class="card-click-area" @click="handleDocClick(doc)">
-              <div class="card-icon">{{ getModalityIcon(doc.fileType) }}</div>
+              <div class="card-icon"><span v-html="getModalityIcon(doc.fileType)"></span></div>
               <h4 class="doc-title">{{ doc.fileName }}</h4>
               <div class="doc-preview">{{ getShortPreview(doc.extractedContent) }}</div>
             </div>
@@ -93,7 +93,7 @@
           <div v-for="doc in discoveryData.newArrivals" :key="doc.id" class="recommend-card glass-card">
             <div class="card-badge new">最新</div>
             <div class="card-click-area" @click="handleDocClick(doc)">
-              <div class="card-icon">{{ getModalityIcon(doc.fileType) }}</div>
+              <div class="card-icon"><span v-html="getModalityIcon(doc.fileType)"></span></div>
               <h4 class="doc-title">{{ doc.fileName }}</h4>
               <div class="doc-preview">{{ getShortPreview(doc.extractedContent) }}</div>
             </div>
@@ -118,7 +118,7 @@
           <div v-for="doc in discoveryData.recentDocuments" :key="doc.id" class="recommend-card glass-card">
             <div class="card-badge new">您的</div>
             <div class="card-click-area" @click="handleDocClick(doc)">
-              <div class="card-icon">{{ getModalityIcon(doc.fileType) }}</div>
+              <div class="card-icon"><span v-html="getModalityIcon(doc.fileType)"></span></div>
               <h4 class="doc-title">{{ doc.fileName }}</h4>
               <div class="doc-preview">{{ getShortPreview(doc.extractedContent) }}</div>
             </div>
@@ -197,11 +197,38 @@ const fetchDiscovery = async () => {
 
 const getModalityIcon = (type: string) => {
   const t = type?.toLowerCase() || ''
-  if (['png', 'jpg', 'jpeg'].includes(t)) return '🖼️'
-  if (['mp4', 'avi'].includes(t)) return '🎬'
-  if (['mp3', 'wav'].includes(t)) return '🎵'
-  if (['pdf'].includes(t)) return '📕'
-  return '📄'
+  if (['png', 'jpg', 'jpeg'].includes(t)) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>`
+  }
+  if (['mp4', 'avi'].includes(t)) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <polygon points="10 9 15 12 10 15" fill="var(--accent)" stroke="none"/>
+    </svg>`
+  }
+  if (['mp3', 'wav'].includes(t)) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+      <path d="M9 18V5l12-2v13"/>
+      <circle cx="6" cy="18" r="3"/>
+      <circle cx="18" cy="16" r="3"/>
+    </svg>`
+  }
+  if (['pdf'].includes(t)) {
+    return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="9" y1="13" x2="15" y2="13"/>
+      <line x1="9" y1="17" x2="13" y2="17"/>
+    </svg>`
+  }
+  return `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>`
 }
 
 const getShortPreview = (content: string) => {
@@ -253,7 +280,8 @@ onMounted(fetchDiscovery)
   margin-bottom: 40px;
   padding: 20px 30px;
   border-radius: 16px;
-  background: rgba(30, 41, 59, 0.5);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
 }
 
 .header h3 {
@@ -265,7 +293,7 @@ onMounted(fetchDiscovery)
 }
 
 .subtitle {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 
@@ -279,7 +307,7 @@ onMounted(fetchDiscovery)
   gap: 10px;
   font-size: 1.2rem;
   font-weight: bold;
-  color: #e2e8f0;
+  color: var(--text-primary);
   margin-bottom: 20px;
   border-left: 4px solid #3b82f6;
   padding-left: 15px;
@@ -295,9 +323,9 @@ onMounted(fetchDiscovery)
   position: relative;
   padding: 24px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(30, 41, 59, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   height: 220px;
   display: flex;
   flex-direction: column;
@@ -306,10 +334,10 @@ onMounted(fetchDiscovery)
 }
 
 .recommend-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  background: rgba(30, 41, 59, 0.6);
-  border-color: rgba(96, 165, 250, 0.4);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  transform: translateY(-2px);
+  background: var(--bg-secondary);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
 }
 
 .card-badge {
@@ -335,13 +363,14 @@ onMounted(fetchDiscovery)
 }
 
 .card-icon {
-  font-size: 2.5rem;
   margin-bottom: 15px;
+  display: flex;
+  align-items: center;
 }
 
 .doc-title {
   font-size: 1.1rem;
-  color: #f1f5f9;
+  color: var(--text-primary);
   margin: 0 0 10px 0;
   white-space: nowrap;
   overflow: hidden;
@@ -350,7 +379,7 @@ onMounted(fetchDiscovery)
 
 .doc-preview {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   line-height: 1.6;
   height: 4.8em;
   overflow: hidden;

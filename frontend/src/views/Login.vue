@@ -53,16 +53,16 @@ const goToRegister = () => router.push('/register')
         <p class="card-subtitle">登录您的账号以继续</p>
         <el-form :model="loginForm" @submit.prevent="handleLogin" class="login-form">
           <div class="form-field">
-            <label>用户名</label>
-            <el-input v-model="loginForm.username" placeholder="请输入用户名" :prefix-icon="User" size="large" />
+            <label for="login-username">用户名</label>
+            <el-input id="login-username" v-model="loginForm.username" placeholder="请输入用户名" :prefix-icon="User" size="large" />
           </div>
           <div class="form-field">
-            <label>密码</label>
-            <el-input v-model="loginForm.password" type="password" placeholder="请输入密码"
+            <label for="login-password">密码</label>
+            <el-input id="login-password" v-model="loginForm.password" type="password" placeholder="请输入密码"
               :prefix-icon="Lock" size="large" show-password @keyup.enter="handleLogin" />
           </div>
           <el-button type="primary" :loading="loading" @click="handleLogin" size="large" class="login-btn">登 录</el-button>
-          <div class="register-link">还没有账号？<a @click="goToRegister">立即注册</a></div>
+          <div class="register-link">还没有账号？<router-link to="/register">立即注册</router-link></div>
         </el-form>
       </div>
     </div>
@@ -111,5 +111,6 @@ const goToRegister = () => router.push('/register')
 .register-link { text-align: center; font-size: 13px; color: #64748b; }
 .register-link a { color: #10b981; cursor: pointer; text-decoration: none; font-weight: 500; }
 .register-link a:hover { text-decoration: underline; }
+.register-link a:visited { color: #10b981; }
 @media (max-width: 900px) { .login-left { display: none; } .login-right { width: 100%; } }
 </style>

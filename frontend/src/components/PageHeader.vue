@@ -1,8 +1,8 @@
 <template>
   <div class="page-header">
     <div class="header-left">
-      <span class="badge" :style="{ background: badgeColor || '#ecfdf5', color: badgeTextColor || '#10b981' }">
-        <span class="badge-dot">●</span> {{ badge }}
+      <span class="badge" :style="{ background: badgeColor || 'var(--accent-light)', color: badgeTextColor || 'var(--accent)' }">
+        <span class="badge-dot"></span> {{ badge }}
       </span>
       <h1 class="header-title">{{ title }}</h1>
       <p v-if="subtitle" class="header-subtitle">{{ subtitle }}</p>
@@ -43,7 +43,13 @@ defineProps<{
   border-radius: 20px;
   margin-bottom: 12px;
 }
-.badge-dot { font-size: 8px; }
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
 .header-title {
   font-size: 32px;
   font-weight: 800;

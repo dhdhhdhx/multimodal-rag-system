@@ -99,7 +99,7 @@ import { Plus, Document as DocIcon, View, Delete, More, Lock, Share, Promotion, 
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
-const md = new MarkdownIt()
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const documents = ref<any[]>([])
 const chatHistory = ref<{role: string, content: string}[]>([])
 const userInput = ref('')

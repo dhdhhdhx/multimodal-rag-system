@@ -40,7 +40,11 @@
             <el-button link size="small" @click="togglePublic(doc)">
               {{ isDocPublic(doc) ? '取消公开' : '设为公开' }}
             </el-button>
-            <el-button link type="danger" size="small" @click="deleteDoc(doc.id)">删除</el-button>
+            <el-popconfirm title="确定要删除此文档吗？" @confirm="deleteDoc(doc.id)">
+              <template #reference>
+                <el-button link type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
           </div>
         </div>
         <div v-if="totalPages > 1" class="pagination-wrap">
@@ -80,7 +84,7 @@ import MarkdownIt from 'markdown-it'
 import api from '../api'
 import PageHeader from '../components/PageHeader.vue'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderMd = (s: string) => s ? md.render(s) : '<p>暂无内容</p>'
 
 const documents = ref<any[]>([])
@@ -252,6 +256,7 @@ onMounted(() => fetchDocuments(0))
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-color);
+  gap: 8px;
 }
 .doc-row:last-child { border-bottom: none; }
 .doc-info { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
@@ -260,7 +265,11 @@ onMounted(() => fetchDocuments(0))
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
 }
 .doc-name:hover { text-decoration: underline; }
-.doc-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.doc-actions { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .doc-row { flex-direction: column; align-items: flex-start; }
+  .doc-actions { width: 100%; justify-content: flex-start; }
+}
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }
 .preview-content {
   max-height: 60vh; overflow-y: auto;

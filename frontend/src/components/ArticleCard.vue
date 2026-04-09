@@ -1,5 +1,6 @@
 <template>
-  <div class="article-card" @click="$emit('click', doc)">
+  <div class="article-card" role="button" tabindex="0"
+    @click="$emit('click', doc)" @keydown.enter="$emit('click', doc)">
     <div class="card-meta">
       <span class="tag-badge">{{ primaryTag }}</span>
       <span class="date">{{ formatDate(doc.uploadTime) }}</span>
@@ -50,11 +51,15 @@ const truncate = (text: string, len: number) => {
   border-radius: var(--radius-lg);
   padding: 24px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
 }
-.article-card:hover {
+.article-card:hover, .article-card:focus-visible {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+.article-card:focus-visible {
+  border-color: var(--accent);
 }
 .card-meta {
   display: flex;
@@ -67,8 +72,8 @@ const truncate = (text: string, len: number) => {
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 4px;
-  background: #ecfdf5;
-  color: #10b981;
+  background: var(--accent-light);
+  color: var(--accent);
 }
 .date { font-size: 12px; color: var(--text-muted); }
 .card-title {

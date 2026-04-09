@@ -2,7 +2,26 @@
   <div class="home-page">
     <PageHeader badge="知识库" title="最新文章" subtitle="探索知识节点，构建你的第二大脑"
       :rightValue="String(totalCount)" rightLabel="文章总数" />
-    <div class="article-grid">
+    <div v-if="loading" class="skeleton-grid">
+      <el-skeleton animated :count="9" :throttle="0">
+        <template #template>
+          <div class="skeleton-card">
+            <div class="skeleton-meta">
+              <el-skeleton-item variant="text" style="width: 72px; height: 22px;" />
+              <el-skeleton-item variant="text" style="width: 96px; height: 16px;" />
+            </div>
+            <el-skeleton-item variant="h3" style="width: 80%; height: 22px; margin-bottom: 8px;" />
+            <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-bottom: 4px;" />
+            <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-bottom: 4px;" />
+            <el-skeleton-item variant="text" style="width: 60%; height: 14px; margin-bottom: 16px;" />
+            <div class="skeleton-footer">
+              <el-skeleton-item variant="text" style="width: 48px; height: 14px;" />
+            </div>
+          </div>
+        </template>
+      </el-skeleton>
+    </div>
+    <div v-else class="article-grid">
       <ArticleCard v-for="doc in documents" :key="doc.id" :doc="doc"
         @click="viewDoc(doc)" />
     </div>
@@ -53,6 +72,31 @@ onMounted(() => loadPage(0))
 </script>
 
 <style scoped>
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.skeleton-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.skeleton-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.skeleton-footer {
+  display: flex;
+  align-items: center;
+}
 .article-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -71,8 +115,10 @@ onMounted(() => loadPage(0))
 }
 @media (max-width: 900px) {
   .article-grid { grid-template-columns: repeat(2, 1fr); }
+  .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
   .article-grid { grid-template-columns: 1fr; }
+  .skeleton-grid { grid-template-columns: 1fr; }
 }
 </style>
