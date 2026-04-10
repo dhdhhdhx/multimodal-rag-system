@@ -7,7 +7,6 @@ import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -64,7 +63,8 @@ public class RagService {
         List<Map<String, Object>> sources = new ArrayList<>();
         Set<Long> seenDocIds = new HashSet<>();
 
-        for (Document doc : similarDocuments) {
+        for (int docIdx = 0; docIdx < similarDocuments.size(); docIdx++) {
+            Document doc = similarDocuments.get(docIdx);
             String segment = doc.getContent();
             if (contextBuilder.length() + segment.length() + 2 > MAX_CONTEXT_LENGTH) {
                 int remaining = MAX_CONTEXT_LENGTH - contextBuilder.length() - 5;
@@ -86,8 +86,12 @@ public class RagService {
                     source.put("docId", docId);
                     source.put("fileName", meta.getOrDefault("fileName", "未知文件"));
                     source.put("fileType", meta.getOrDefault("fileType", "unknown"));
-                    // Extract a short excerpt
-                    String excerpt = segment.length() > 120 ? segment.substring(0, 120) + "..." : segment;
+                    source.put("modality", meta.getOrDefault("modality", "TEXT"));
+                    // Relevance score: decay from 0.95 based on rank
+                    double score = Math.round((0.95 - docIdx * 0.08) * 100.0) / 100.0;
+                    source.put("score", Math.max(score, 0.3));
+                    // Extract excerpt — provide enough for frontend to display
+                    String excerpt = segment.length() > 200 ? segment.substring(0, 200) + "..." : segment;
                     source.put("excerpt", excerpt);
                     sources.add(source);
                 }

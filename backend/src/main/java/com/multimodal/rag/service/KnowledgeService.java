@@ -247,6 +247,13 @@ public class KnowledgeService {
             }
         }
         
+        // Delete vector data from PGVector
+        try {
+            vectorStoreService.deleteByDocumentId(id);
+        } catch (Exception e) {
+            log.warn("Vector deletion failed for document {}, continuing with MySQL deletion", id);
+        }
+
         // Ensure database record is removed even if file system operation fails
         repository.delete(doc);
         

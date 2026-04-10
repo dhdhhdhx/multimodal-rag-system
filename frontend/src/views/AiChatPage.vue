@@ -43,16 +43,64 @@
             <div class="msg-bubble">
               <div class="msg-role">{{ msg.role === 'user' ? '你' : 'AI' }}</div>
               <div class="msg-content" v-html="renderMd(msg.content)"></div>
-              <!-- Source references -->
+              <!-- Source reference cards -->
               <div v-if="msg.sources && msg.sources.length" class="msg-sources">
-                <div class="sources-label">参考来源：</div>
-                <div v-for="(src, j) in msg.sources" :key="j" class="source-item"
-                  @click="viewSource(src)">
-                  <el-icon><Document /></el-icon>
-                  <span class="source-name">{{ src.fileName }}</span>
-                  <span class="source-excerpt" v-html="highlightExcerpt(src.excerpt, msg)"></span>
+                <div class="sources-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  参考来源（{{ msg.sources.length }}）
+                </div>
+                <div v-for="(src, j) in msg.sources" :key="j" class="source-card">
+                  <div class="source-card-header">
+                    <span class="source-card-icon" :class="getFileTypeClass(src.fileType)">{{ getFileTypeIcon(src.fileType) }}</span>
+                    <div class="source-card-info">
+                      <div class="source-card-name">{{ src.fileName || '未知文件' }}</div>
+                      <div class="source-card-meta">
+                        <span class="source-card-type">{{ src.fileType?.toUpperCase() || 'FILE' }}</span>
+                        <span v-if="src.modality" class="source-card-modality">{{ src.modality }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="source-card-excerpt" v-html="highlightExcerpt(src.excerpt, msg)"></div>
+                  <div class="source-card-footer">
+                    <div class="source-card-score">
+                      <span class="score-label">相关度</span>
+                      <el-progress
+                        :percentage="getScorePercent(src.score)"
+                        :stroke-width="6"
+                        :show-text="false"
+                        :color="getScoreColor(src.score)"
+                        style="width: 80px;"
+                      />
+                      <span class="score-value" :style="{ color: getScoreColor(src.score) }">{{ getScorePercent(src.score) }}%</span>
+                    </div>
+                    <div class="source-card-actions">
+                      <button class="src-action-btn" title="预览引用" @click="previewSource(src, msg)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span>预览</span>
+                      </button>
+                      <button class="src-action-btn" title="跳转到文档" @click="viewSource(src)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        <span>跳转</span>
+                      </button>
+                      <button class="src-action-btn" title="复制引用" @click="copyQuote(src)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span>引用</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              <!-- Source preview dialog -->
+              <el-dialog v-model="previewVisible" title="引用预览" width="560px" :modal="false" class="source-preview-dialog">
+                <template #header>
+                  <div class="preview-dialog-header">
+                    <span class="preview-dialog-icon" :class="getFileTypeClass(previewSrc?.fileType)">{{ getFileTypeIcon(previewSrc?.fileType) }}</span>
+                    <span>{{ previewSrc?.fileName || '未知文件' }}</span>
+                  </div>
+                </template>
+                <div class="preview-dialog-content" v-html="renderMd(previewContent)"></div>
+              </el-dialog>
             </div>
           </div>
           <div v-if="loading" class="message ai">
@@ -83,10 +131,10 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
-import { ArrowLeft, Delete, Close, ChatLineSquare, Document } from '@element-plus/icons-vue'
+import { ArrowLeft, Delete, Close, ChatLineSquare } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
-import api from '../api'
+import api, { getAccessToken } from '../api'
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
@@ -232,11 +280,96 @@ const clearChat = () => {
   ElMessage.success('会话已清除')
 }
 
-const viewSource = (src: any) => {
-  if (src.docId) {
-    // Navigate to article detail page
-    window.open(`/article/${src.docId}`, '_blank')
+// Source card helpers
+const previewVisible = ref(false)
+const previewSrc = ref<any>(null)
+const previewContent = ref('')
+
+const getFileTypeIcon = (type: string) => {
+  const t = (type || '').toLowerCase()
+  if (t === 'pdf') return 'PDF'
+  if (['doc', 'docx'].includes(t)) return 'DOC'
+  if (['xls', 'xlsx'].includes(t)) return 'XLS'
+  if (['ppt', 'pptx'].includes(t)) return 'PPT'
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(t)) return 'IMG'
+  if (['mp4', 'avi', 'mov', 'webm'].includes(t)) return 'VID'
+  if (['mp3', 'wav', 'ogg'].includes(t)) return 'AUD'
+  if (t === 'txt' || t === 'md') return 'TXT'
+  return 'FILE'
+}
+
+const getFileTypeClass = (type: string) => {
+  const t = (type || '').toLowerCase()
+  if (t === 'pdf') return 'ft-pdf'
+  if (['doc', 'docx'].includes(t)) return 'ft-doc'
+  if (['xls', 'xlsx'].includes(t)) return 'ft-xls'
+  if (['ppt', 'pptx'].includes(t)) return 'ft-ppt'
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(t)) return 'ft-img'
+  if (['mp4', 'avi', 'mov', 'webm'].includes(t)) return 'ft-vid'
+  if (['mp3', 'wav', 'ogg'].includes(t)) return 'ft-aud'
+  return 'ft-default'
+}
+
+const getScorePercent = (score: number) => Math.min(Math.round((score || 0.5) * 100), 99)
+
+const getScoreColor = (score: number) => {
+  const s = score || 0.5
+  if (s >= 0.8) return '#10b981'
+  if (s >= 0.6) return '#f59e0b'
+  return '#ef4444'
+}
+
+const previewSource = (src: any, _msg: ChatMsg) => {
+  previewSrc.value = src
+  previewContent.value = src.excerpt || '暂无引用内容'
+  previewVisible.value = true
+}
+
+const viewSource = async (src: any) => {
+  if (!src.docId) return
+  const token = getAccessToken()
+  if (!token) {
+    ElMessage.error('请先登录')
+    return
   }
+  try {
+    const res = await fetch(`/api/knowledge/view/${src.docId}?proxy=true`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const contentType = res.headers.get('Content-Type') || ''
+    if (contentType.includes('text/plain')) {
+      const text = await res.text()
+      if (text.length < 200) {
+        ElMessage.warning('该文档没有原始文件')
+        return
+      }
+      const blobUrl = URL.createObjectURL(new Blob([text], { type: 'text/html' }))
+      window.open(blobUrl, '_blank')
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
+    } else {
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.target = '_blank'
+      a.download = src.fileName || 'file'
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
+    }
+  } catch (e: any) {
+    ElMessage.error('无法打开文档')
+    console.error('viewSource error:', e)
+  }
+}
+
+const copyQuote = (src: any) => {
+  const text = `[${src.fileName || '未知文件'}] ${src.excerpt || ''}`
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success('引用已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
 }
 
 onMounted(fetchSessions)
@@ -358,7 +491,7 @@ onMounted(fetchSessions)
 .msg-content :deep(code) { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
 .msg-content :deep(pre) { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; }
 
-/* Source references */
+/* Source reference cards */
 .msg-sources {
   margin-top: 12px;
   padding-top: 10px;
@@ -367,34 +500,171 @@ onMounted(fetchSessions)
 .sources-label {
   font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
-.source-item {
+.sources-label svg { opacity: 0.6; }
+.source-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.source-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.source-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.source-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+.ft-pdf { background: #fef2f2; color: #dc2626; }
+.ft-doc { background: #eff6ff; color: #2563eb; }
+.ft-xls { background: #f0fdf4; color: #16a34a; }
+.ft-ppt { background: #fff7ed; color: #ea580c; }
+.ft-img { background: #faf5ff; color: #9333ea; }
+.ft-vid { background: #fefce8; color: #ca8a04; }
+.ft-aud { background: #fdf2f8; color: #db2777; }
+.ft-default { background: #f1f5f9; color: #64748b; }
+.source-card-info { flex: 1; min-width: 0; }
+.source-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.source-card-meta {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: rgba(16, 185, 129, 0.06);
-  margin-bottom: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
+  margin-top: 2px;
+}
+.source-card-type {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.source-card-modality {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.source-card-excerpt {
+  padding: 0 10px;
   font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, #64748b);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.source-item:hover { background: rgba(16, 185, 129, 0.12); }
-.source-name { font-weight: 600; color: var(--accent); white-space: nowrap; }
-.source-excerpt {
-  color: var(--text-muted); font-size: 11px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  flex: 1;
-}
-.source-excerpt :deep(mark) {
+.source-card-excerpt :deep(mark) {
   background: #fef08a;
   color: #1e293b;
   padding: 0 2px;
   border-radius: 2px;
 }
+.source-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 8px;
+  gap: 8px;
+}
+.source-card-score {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.score-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.score-value {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+}
+.source-card-actions {
+  display: flex;
+  gap: 2px;
+}
+.src-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.src-action-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(16, 185, 129, 0.06);
+}
+.src-action-btn svg { flex-shrink: 0; }
+
+/* Source preview dialog */
+.preview-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.preview-dialog-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+}
+.preview-dialog-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-secondary, #475569);
+  max-height: 400px;
+  overflow-y: auto;
+}
+.preview-dialog-content :deep(p) { margin: 0 0 8px; }
+.preview-dialog-content :deep(p:last-child) { margin: 0; }
 
 .loading-bubble { min-width: 80px; }
 .typing-dots { display: flex; gap: 4px; padding: 4px 0; }

@@ -3,7 +3,9 @@ package com.multimodal.rag.controller;
 import com.multimodal.rag.model.MultimodalDocument;
 import com.multimodal.rag.model.User;
 import com.multimodal.rag.repository.MultimodalDocumentRepository;
+import com.multimodal.rag.repository.UserRepository;
 import com.multimodal.rag.service.AdminService;
+import com.multimodal.rag.service.KnowledgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -13,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -21,6 +24,8 @@ public class AdminController {
 
     private final AdminService adminService;
     private final MultimodalDocumentRepository documentRepository;
+    private final KnowledgeService knowledgeService;
+    private final UserRepository userRepository;
 
     // ===== User Management =====
 
@@ -112,6 +117,22 @@ public class AdminController {
             doc.setExtractedContent((String) request.get("extractedContent"));
         }
         return ResponseEntity.ok(documentRepository.save(doc));
+    }
+
+    @DeleteMapping("/documents/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteDocument(@PathVariable Long id) throws IOException {
+        // Reuse KnowledgeService.deleteDocument which handles:
+        // - permission check (admin bypasses)
+        // - file deletion (OSS or local)
+        // - vector store cleanup
+        // - MySQL record removal
+        String username = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+        User admin = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        knowledgeService.deleteDocument(id, admin);
+        return ResponseEntity.noContent().build();
     }
 
     // ===== Tag Management =====

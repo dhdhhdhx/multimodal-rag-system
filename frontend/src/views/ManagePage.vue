@@ -411,22 +411,43 @@ const viewOriginal = async (doc: any) => {
   }
 
   try {
-    // Request the view endpoint — backend returns either:
-    //   302 + Location header (OSS presigned URL)
-    //   200 + text/plain body (no real file, seed doc)
-    //   200 + binary stream (local file)
-    const res = await fetch(`/api/knowledge/view/${id}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      redirect: 'manual'
-    })
+    // Try redirect mode first (OSS presigned URL)
+    // Use 'manual' redirect to capture 302 responses and Location headers
+    let res
+    try {
+      res = await fetch(`/api/knowledge/view/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        redirect: 'manual'
+      })
+    } catch (fetchErr) {
+      // Network error or CORS issue with manual redirect
+      console.warn('Redirect mode failed, falling back to proxy mode:', fetchErr)
+      // Fall back to proxy mode which avoids CORS issues
+      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    }
 
-    // 302 redirect — OSS presigned URL
+    // Handle 302/301/307 redirect responses from manual redirect mode
     if (res.status === 302 || res.status === 301 || res.status === 307) {
       const location = res.headers.get('Location')
       if (location) {
         openFileLink(location, fileName)
         return
       }
+      // If no Location header, fall through to proxy mode
+      console.warn('Redirect response without Location header, falling back to proxy mode')
+      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+    }
+
+    // Handle opaque responses (status 0) from CORS errors
+    if (res.status === 0) {
+      console.warn('Opaque response detected, falling back to proxy mode')
+      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
     }
 
     // 200 OK — check content type
@@ -449,7 +470,7 @@ const viewOriginal = async (doc: any) => {
         return
       }
 
-      // Real binary file (local file fallback) — use blob URL
+      // Real binary file (local file or proxied OSS file) — use blob URL
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)
       openFileLink(blobUrl, fileName)
@@ -481,11 +502,17 @@ const openFileLink = (url: string, fileName: string) => {
   a.href = url
   a.target = '_blank'
   a.rel = 'noopener noreferrer'
-  a.download = fileName
   a.style.display = 'none'
+
+  // For blob URLs, use download attribute to force download
+  // For external URLs (OSS presigned URLs), let browser decide
+  if (url.startsWith('blob:')) {
+    a.download = fileName
+  }
+
   document.body.appendChild(a)
   a.click()
-  document.body.removeChild(a)
+  setTimeout(() => document.body.removeChild(a), 100)
 }
 
 // --- Edit Tags Dialog ---

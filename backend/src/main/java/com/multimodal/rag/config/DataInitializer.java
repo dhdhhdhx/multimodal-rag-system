@@ -8,6 +8,7 @@ import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.repository.PermissionRepository;
 import com.multimodal.rag.repository.RoleRepository;
 import com.multimodal.rag.repository.UserRepository;
+import com.multimodal.rag.service.VectorStoreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -29,6 +31,7 @@ public class DataInitializer implements CommandLineRunner {
     private final PermissionRepository permissionRepository;
     private final MultimodalDocumentRepository documentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final VectorStoreService vectorStoreService;
 
     @Override
     @Transactional
@@ -110,6 +113,10 @@ public class DataInitializer implements CommandLineRunner {
                 documentRepository.saveAll(existingDocs);
                 log.info("Updated existing system documents (public + tags).");
             }
+
+            // Ensure existing seed documents are indexed in the vector store
+            indexExistingSeedDocs(existingDocs);
+
             return;
         }
 
@@ -157,7 +164,61 @@ public class DataInitializer implements CommandLineRunner {
         doc.setShared(true);
         doc.setTags(tags);
         doc.setFilePath("/system/seed/" + name + "." + type);
-        documentRepository.save(doc);
+        doc = documentRepository.save(doc);
+
+        // Add to vector store so RAG retrieval can find it
+        addToVectorStore(doc);
+    }
+
+    /**
+     * Index existing seed documents into the vector store.
+     * This is a one-time repair for seed documents that were created
+     * before vector store integration was added.
+     * We do a test search to determine if vectors already exist.
+     */
+    private void indexExistingSeedDocs(List<MultimodalDocument> docs) {
+        if (docs.isEmpty()) return;
+
+        // Probe the vector store to see if seed docs are already indexed
+        try {
+            List<org.springframework.ai.document.Document> probe =
+                vectorStoreService.search("多模态 RAG", 1);
+            if (!probe.isEmpty()) {
+                log.info("Seed documents already exist in vector store, skipping re-index.");
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Vector store probe failed, will attempt to index seed docs: {}", e.getMessage());
+        }
+
+        int indexed = 0;
+        for (MultimodalDocument doc : docs) {
+            String content = doc.getExtractedContent();
+            if (content != null && !content.isBlank()) {
+                addToVectorStore(doc);
+                indexed++;
+            }
+        }
+        if (indexed > 0) {
+            log.info("Indexed {} seed documents into vector store (first-time repair).", indexed);
+        }
+    }
+
+    private void addToVectorStore(MultimodalDocument doc) {
+        try {
+            Map<String, Object> metadata = Map.of(
+                "documentId", doc.getId(),
+                "userId", doc.getUser().getId(),
+                "fileName", doc.getFileName(),
+                "fileType", doc.getFileType(),
+                "modality", "TEXT"
+            );
+            vectorStoreService.addDocument(doc.getExtractedContent(), metadata);
+            log.info("Indexed seed document '{}' (id={}) into vector store.", doc.getFileName(), doc.getId());
+        } catch (Exception e) {
+            log.warn("Failed to index seed document '{}' into vector store: {}",
+                    doc.getFileName(), e.getMessage());
+        }
     }
 
     private String inferTags(String fileName) {

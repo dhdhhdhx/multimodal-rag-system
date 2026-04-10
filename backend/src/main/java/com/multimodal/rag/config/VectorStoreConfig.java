@@ -45,12 +45,17 @@ public class VectorStoreConfig {
     }
 
     @Bean
+    public JdbcTemplate vectorJdbcTemplate() {
+        return new JdbcTemplate(vectorDataSource());
+    }
+
+    @Bean
     public PgVectorStore vectorStore(EmbeddingModel embeddingModel) {
-        return new PgVectorStore(new JdbcTemplate(vectorDataSource()), 
-                                 embeddingModel, 
-                                 dimensions, 
-                                 PgVectorStore.PgDistanceType.COSINE_DISTANCE, 
-                                 true, 
+        return new PgVectorStore(new JdbcTemplate(vectorDataSource()),
+                                 embeddingModel,
+                                 dimensions,
+                                 PgVectorStore.PgDistanceType.COSINE_DISTANCE,
+                                 false,
                                  PgIndexType.HNSW,
                                  true);
     }

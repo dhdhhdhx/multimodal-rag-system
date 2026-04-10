@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class VectorStoreService {
 
     private final VectorStore vectorStore;
+    private final JdbcTemplate vectorJdbcTemplate;
 
     public void addDocument(String content, Map<String, Object> metadata) {
         log.info("Adding content to vector store with metadata: {}", metadata);
@@ -52,8 +54,13 @@ public class VectorStoreService {
         SearchRequest request = SearchRequest.query(query).withTopK(topK);
 
         if (userId != null) {
-            // Filter by userId in metadata
-            request = request.withFilterExpression("userId == " + userId);
+            // Filter by userId in metadata.
+            // PGVector stores metadata as JSONB. A Long value becomes a JSON number (e.g. 42),
+            // but Spring AI M4 filter DSL converts expressions to SQL using the text operator ->>,
+            // so we compare against the string representation of the userId.
+            String filterExpr = "userId == '" + userId + "'";
+            request = request.withFilterExpression(filterExpr);
+            log.debug("Using filter expression: {}", filterExpr);
         }
 
         // Retry up to 3 times on transient I/O errors (e.g. embedding API connection reset)
@@ -71,10 +78,28 @@ public class VectorStoreService {
                     log.warn("Transient error on search attempt {}/{}: {}. Retrying...", attempt, maxRetries, msg);
                     try { Thread.sleep(500L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
                 } else {
+                    log.error("Vector search failed after {} attempts: {}", attempt, msg);
                     throw e;
                 }
             }
         }
         return List.of(); // unreachable
+    }
+
+    /**
+     * Delete all vector rows for a given documentId.
+     * Uses direct SQL against the PGVector store table to clean up orphaned embeddings.
+     */
+    public void deleteByDocumentId(Long documentId) {
+        log.info("Deleting vectors for documentId: {}", documentId);
+        try {
+            int deleted = vectorJdbcTemplate.update(
+                "DELETE FROM vector_store WHERE metadata->>'documentId' = ?",
+                documentId.toString()
+            );
+            log.info("Deleted {} vector rows for documentId: {}", deleted, documentId);
+        } catch (Exception e) {
+            log.warn("Failed to delete vectors for documentId {}: {}", documentId, e.getMessage());
+        }
     }
 }
