@@ -3,14 +3,17 @@ package com.multimodal.rag.service;
 import com.multimodal.rag.model.*;
 import com.multimodal.rag.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AdminService {
 
@@ -167,17 +170,61 @@ public class AdminService {
 
     /** Get user activity stats */
     public List<Map<String, Object>> getUserActivity(int days) {
-        LocalDateTime since = LocalDateTime.now().minusDays(days);
+        log.info("===== 开始获取用户活跃度数据 (最近 {} 天) =====", days);
+
+        // 使用 LocalDate 进行日期比较，避免时区问题
+        LocalDate sinceDate = LocalDate.now().minusDays(days);
+        log.info("筛选起始日期: {} (当天开始)", sinceDate);
+
         List<User> users = userRepository.findAll();
+        log.info("系统中总用户数: {}", users.size());
 
-        List<QueryLog> recentQueries = queryLogRepository.findAll().stream()
-                .filter(l -> l.getCreatedAt().isAfter(since))
+        // 获取所有查询日志
+        List<QueryLog> allQueries = queryLogRepository.findAll();
+        log.info("数据库中总查询日志数: {}", allQueries.size());
+
+        // 记录最近的几条日志时间，用于调试
+        if (!allQueries.isEmpty()) {
+            List<QueryLog> sampleLogs = allQueries.stream()
+                .sorted(Comparator.comparing(QueryLog::getCreatedAt).reversed())
+                .limit(5)
+                .toList();
+            log.info("最近5条查询日志时间:");
+            for (QueryLog queryLog : sampleLogs) {
+                String queryText = queryLog.getQueryText() != null
+                    ? queryLog.getQueryText().substring(0, Math.min(50, queryLog.getQueryText().length()))
+                    : "";
+                log.info("  - 日志ID {}: 创建时间={}, 用户ID={}, 查询文本={}",
+                    queryLog.getId(), queryLog.getCreatedAt(), queryLog.getUserId(), queryText);
+            }
+        }
+
+        // 使用 LocalDate 比较而不是 LocalDateTime，更精确
+        List<QueryLog> recentQueries = allQueries.stream()
+                .filter(l -> {
+                    LocalDate logDate = l.getCreatedAt().toLocalDate();
+                    boolean isAfter = logDate.isAfter(sinceDate.minusDays(1)); // 包含当天
+                    return isAfter;
+                })
                 .collect(Collectors.toList());
 
-        List<DocumentAccessLog> recentAccesses = accessLogRepository.findAll().stream()
-                .filter(l -> l.getCreatedAt().isAfter(since))
+        log.info("筛选后的最近查询日志数: {}", recentQueries.size());
+
+        // 获取所有访问日志
+        List<DocumentAccessLog> allAccesses = accessLogRepository.findAll();
+        log.info("数据库中总访问日志数: {}", allAccesses.size());
+
+        List<DocumentAccessLog> recentAccesses = allAccesses.stream()
+                .filter(l -> {
+                    LocalDate logDate = l.getCreatedAt().toLocalDate();
+                    boolean isAfter = logDate.isAfter(sinceDate.minusDays(1)); // 包含当天
+                    return isAfter;
+                })
                 .collect(Collectors.toList());
 
+        log.info("筛选后的最近访问日志数: {}", recentAccesses.size());
+
+        // 按用户统计
         Map<Long, Long> queryCountByUser = recentQueries.stream()
                 .filter(l -> l.getUserId() != null)
                 .collect(Collectors.groupingBy(QueryLog::getUserId, Collectors.counting()));
@@ -185,7 +232,11 @@ public class AdminService {
                 .filter(l -> l.getUserId() != null)
                 .collect(Collectors.groupingBy(DocumentAccessLog::getUserId, Collectors.counting()));
 
-        return users.stream().map(user -> {
+        log.info("有查询记录的用户数: {}", queryCountByUser.size());
+        log.info("有访问记录的用户数: {}", accessCountByUser.size());
+
+        // 构建返回结果
+        List<Map<String, Object>> result = users.stream().map(user -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("userId", user.getId());
             m.put("username", user.getUsername());
@@ -198,5 +249,8 @@ public class AdminService {
                 (Long) b.get("queryCount") + (Long) b.get("accessCount"),
                 (Long) a.get("queryCount") + (Long) a.get("accessCount")
         )).collect(Collectors.toList());
+
+        log.info("===== 用户活跃度数据获取完成，返回 {} 条记录 =====", result.size());
+        return result;
     }
 }

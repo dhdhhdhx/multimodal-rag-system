@@ -6,10 +6,12 @@ import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.repository.UserRepository;
 import com.multimodal.rag.service.AdminService;
 import com.multimodal.rag.service.KnowledgeService;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -84,14 +86,41 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> listAllDocuments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String keyword) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "uploadTime"));
-        Page<MultimodalDocument> result;
-        if (keyword != null && !keyword.isBlank()) {
-            result = documentRepository.searchPublic(keyword.trim(), pageable);
-        } else {
-            result = documentRepository.findAll(pageable);
-        }
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "uploadTime") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
+
+        // Whitelist sortable fields to prevent injection
+        String sortField = switch (sortBy) {
+            case "viewCount", "uploadTime", "fileName", "fileSize" -> sortBy;
+            default -> "uploadTime";
+        };
+        Sort sort = Sort.by("asc".equalsIgnoreCase(sortOrder)
+                ? Sort.Direction.ASC : Sort.Direction.DESC, sortField);
+        PageRequest pageable = PageRequest.of(page, size, sort);
+
+        // Build dynamic query using JPA Specification
+        Specification<MultimodalDocument> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (keyword != null && !keyword.isBlank()) {
+                String kw = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("fileName")), kw),
+                    cb.like(cb.lower(root.get("extractedContent")), kw)));
+            }
+            if (tag != null && !tag.isBlank()) {
+                predicates.add(cb.like(root.get("tags"), "%" + tag.trim() + "%"));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status.trim().toUpperCase()));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<MultimodalDocument> result = documentRepository.findAll(spec, pageable);
+
         Map<String, Object> response = new HashMap<>();
         response.put("content", result.getContent());
         response.put("totalElements", result.getTotalElements());

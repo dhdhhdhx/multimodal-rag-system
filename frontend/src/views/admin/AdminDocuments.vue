@@ -23,22 +23,51 @@
         </div>
       </el-upload>
       <div class="upload-footer">
-        <el-input v-model="uploadTags" placeholder="标签（逗号分隔）" size="default" style="width: 300px" />
+        <el-select v-model="uploadTags" multiple filterable allow-create default-first-option placeholder="选择或输入标签" size="default" style="width: 300px">
+          <el-option v-for="tag in allTags" :key="tag" :label="tag" :value="tag" />
+        </el-select>
         <el-button type="primary" @click="doUpload" :loading="uploading">
           确认上传（{{ fileList.length }} 个文件）
         </el-button>
       </div>
     </div>
 
-    <div class="admin-filter-bar" v-if="allTags.length > 0">
-      <el-select v-model="filterTag" placeholder="按标签筛选" clearable style="width: 160px" @change="resetAndFetch">
+    <div class="admin-filter-bar">
+      <el-select v-model="filterTag" placeholder="按标签筛选" clearable style="width: 140px">
         <el-option v-for="tag in allTags" :key="tag" :label="tag" :value="tag" />
       </el-select>
+      <el-select v-model="filterStatus" placeholder="按状态筛选" clearable style="width: 140px">
+        <el-option label="处理中" value="PROCESSING" />
+        <el-option label="已完成" value="COMPLETED" />
+        <el-option label="失败" value="FAILED" />
+      </el-select>
+      <div class="filter-divider" />
+      <el-select v-model="sortBy" style="width: 130px">
+        <el-option label="按上传时间" value="uploadTime" />
+        <el-option label="按浏览量" value="viewCount" />
+      </el-select>
+      <el-select v-model="sortOrder" style="width: 110px">
+        <el-option label="降序" value="desc" />
+        <el-option label="升序" value="asc" />
+      </el-select>
+      <el-button type="primary" size="default" @click="resetAndFetch">查询</el-button>
+    </div>
+
+    <div class="batch-actions" v-if="selectedRows.length > 0">
+      <span class="batch-info">已选择 {{ selectedRows.length }} 项</span>
+      <el-popconfirm title="确定要删除选中的文档吗？" @confirm="handleBatchDelete">
+        <template #reference>
+          <el-button type="danger" size="small">批量删除</el-button>
+        </template>
+      </el-popconfirm>
     </div>
 
     <div class="admin-card" style="padding: 0; overflow: hidden;">
-      <el-table :data="documents" stripe style="width: 100%">
-        <el-table-column prop="id" label="ID" width="60" />
+      <el-table :data="documents" stripe style="width: 100%" @selection-change="handleSelectionChange" ref="tableRef">
+        <el-table-column type="selection" width="45" fixed="left" />
+        <el-table-column label="ID" width="60">
+          <template #default="{ $index }">{{ currentPage * pageSize + $index + 1 }}</template>
+        </el-table-column>
         <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <div style="display:flex; align-items:center; gap:6px;">
@@ -49,11 +78,8 @@
         </el-table-column>
         <el-table-column label="标签" min-width="180">
           <template #default="{ row }">
-            <span v-if="!row._editing">
-              <span v-for="tag in parseTags(row.tags)" :key="tag" style="display:inline-block; padding:2px 8px; margin:2px; background:var(--admin-primary-light, #eef1ff); color:var(--admin-primary, #4361ee); border-radius:10px; font-size:12px; font-weight:500;">{{ tag }}</span>
-              <span v-if="!row.tags" style="color: var(--admin-text-muted, #94a3b8); font-size:13px;">无</span>
-            </span>
-            <el-input v-else v-model="row._editTags" size="small" placeholder="逗号分隔" />
+            <span v-for="tag in parseTags(row.tags)" :key="tag" style="display:inline-block; padding:2px 8px; margin:2px; background:var(--admin-primary-light, #eef1ff); color:var(--admin-primary, #4361ee); border-radius:10px; font-size:12px; font-weight:500;">{{ tag }}</span>
+            <span v-if="!row.tags" style="color: var(--admin-text-muted, #94a3b8); font-size:13px;">无</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="110">
@@ -70,22 +96,15 @@
         <el-table-column label="上传时间" width="170">
           <template #default="{ row }">{{ formatTime(row.uploadTime) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <template v-if="!row._editing">
-              <el-button link type="primary" size="small" @click="startEdit(row)">编辑</el-button>
-              <el-button link size="small" @click="previewDoc(row)">查看</el-button>
-              <el-button link size="small" @click="editContent(row)">内容</el-button>
-              <el-popconfirm title="确定要删除此文档吗？" @confirm="handleDeleteDoc(row.id)">
-                <template #reference>
-                  <el-button link type="danger" size="small">删除</el-button>
-                </template>
-              </el-popconfirm>
-            </template>
-            <template v-else>
-              <el-button link type="success" size="small" @click="saveEdit(row)">保存</el-button>
-              <el-button link size="small" @click="row._editing = false">取消</el-button>
-            </template>
+            <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
+            <el-button link size="small" @click="previewDoc(row)">查看</el-button>
+            <el-popconfirm title="确定要删除此文档吗？" @confirm="handleDeleteDoc(row.id)">
+              <template #reference>
+                <el-button link type="danger" size="small">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -106,12 +125,24 @@
       <template #footer><el-button @click="previewVisible = false">关闭</el-button></template>
     </el-dialog>
 
-    <!-- Edit Content Dialog -->
-    <el-dialog v-model="editContentVisible" title="编辑文档内容" width="800px" top="5vh">
-      <el-input v-model="editContentText" type="textarea" :rows="20" placeholder="文档内容" />
+    <!-- Edit Dialog -->
+    <el-dialog v-model="editDialogVisible" title="编辑文档" width="700px" top="5vh">
+      <el-form label-width="60px">
+        <el-form-item label="文件名">
+          <span style="color: var(--admin-text-primary, #1e293b); font-weight: 500;">{{ editingDoc.fileName }}</span>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-select v-model="editingTags" multiple filterable allow-create default-first-option placeholder="选择或输入标签" style="width: 100%">
+            <el-option v-for="tag in allTags" :key="tag" :label="tag" :value="tag" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内容">
+          <el-input v-model="editingContent" type="textarea" :rows="12" placeholder="文档内容" />
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <el-button @click="editContentVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveContent">保存内容</el-button>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveEdit">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -129,6 +160,9 @@ const renderMd = (s: string) => s ? md.render(s) : '<p>暂无内容</p>'
 const documents = ref<any[]>([])
 const keyword = ref('')
 const filterTag = ref('')
+const filterStatus = ref('')
+const sortBy = ref('uploadTime')
+const sortOrder = ref('desc')
 const allTags = ref<string[]>([])
 const currentPage = ref(0)
 const totalElements = ref(0)
@@ -174,19 +208,23 @@ const formatTime = (t: string) => t ? new Date(t).toLocaleString('zh-CN') : ''
 
 const fetchDocs = async (page: number) => {
   try {
-    const params: any = { page, size: pageSize.value }
+    const params: any = { page, size: pageSize.value, sortBy: sortBy.value, sortOrder: sortOrder.value }
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
     if (filterTag.value) params.tag = filterTag.value
+    if (filterStatus.value) params.status = filterStatus.value
     const res = await api.get('/admin/documents', { params })
     documents.value = res.data.content.map((d: any) => ({
-      ...d, _shared: d.isPublic ?? d.shared ?? false, _editing: false, _editTags: d.tags || ''
+      ...d, _shared: d.isPublic ?? d.shared ?? false
     }))
     totalElements.value = res.data.totalElements
     currentPage.value = res.data.number
-    // Collect all tags for filter
-    const tagSet = new Set<string>()
-    res.data.content.forEach((d: any) => parseTags(d.tags).forEach(t => tagSet.add(t)))
-    allTags.value = Array.from(tagSet).sort()
+  } catch (e) { console.error(e) }
+}
+
+const fetchAllTags = async () => {
+  try {
+    const res = await api.get('/admin/tags')
+    allTags.value = res.data.map((t: any) => t.name as string).sort()
   } catch (e) { console.error(e) }
 }
 
@@ -202,13 +240,23 @@ const togglePublic = async (row: any) => {
   } catch { ElMessage.error('操作失败') }
 }
 
-const startEdit = (row: any) => { row._editing = true; row._editTags = row.tags || '' }
-const saveEdit = async (row: any) => {
+const openEditDialog = (row: any) => {
+  editingDoc.value = row
+  editingTags.value = parseTags(row.tags)
+  editingContent.value = row.extractedContent || ''
+  editDialogVisible.value = true
+}
+
+const saveEdit = async () => {
   try {
-    await api.put(`/admin/documents/${row.id}`, { tags: row._editTags })
-    row.tags = row._editTags
-    row._editing = false
+    await api.put(`/admin/documents/${editingDoc.value.id}`, {
+      tags: editingTags.value.join(','),
+      extractedContent: editingContent.value
+    })
+    editDialogVisible.value = false
     ElMessage.success('已保存')
+    fetchDocs(currentPage.value)
+    fetchAllTags()
   } catch { ElMessage.error('保存失败') }
 }
 
@@ -220,36 +268,39 @@ const handleDeleteDoc = async (id: number) => {
   } catch { ElMessage.error('删除失败') }
 }
 
+// Batch selection & delete
+const tableRef = ref()
+const selectedRows = ref<any[]>([])
+
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
+}
+
+const handleBatchDelete = async () => {
+  const ids = selectedRows.value.map(r => r.id)
+  if (ids.length === 0) return
+  try {
+    await Promise.all(ids.map(id => api.delete(`/admin/documents/${id}`)))
+    ElMessage.success(`已删除 ${ids.length} 个文档`)
+    fetchDocs(currentPage.value)
+  } catch { ElMessage.error('批量删除失败') }
+}
+
 // Preview
 const previewVisible = ref(false)
 const previewDoc_ = ref<any>({})
 const previewDoc = (doc: any) => { previewDoc_.value = doc; previewVisible.value = true }
 
-// Edit content
-const editContentVisible = ref(false)
-const editContentText = ref('')
-const editContentDocId = ref<number | null>(null)
-
-const editContent = (doc: any) => {
-  editContentDocId.value = doc.id
-  editContentText.value = doc.extractedContent || ''
-  editContentVisible.value = true
-}
-
-const saveContent = async () => {
-  if (editContentDocId.value === null) return
-  try {
-    await api.put(`/admin/documents/${editContentDocId.value}`, { extractedContent: editContentText.value })
-    editContentVisible.value = false
-    ElMessage.success('内容已更新')
-    fetchDocs(currentPage.value)
-  } catch { ElMessage.error('保存失败') }
-}
+// Edit dialog
+const editDialogVisible = ref(false)
+const editingDoc = ref<any>({})
+const editingTags = ref<string[]>([])
+const editingContent = ref('')
 
 // Upload
 const showUpload = ref(false)
 const fileList = ref<any[]>([])
-const uploadTags = ref('')
+const uploadTags = ref<string[]>([])
 const uploading = ref(false)
 const uploadRef = ref()
 
@@ -262,17 +313,19 @@ const doUpload = async () => {
   for (const f of fileList.value) {
     const formData = new FormData()
     formData.append('file', f.raw)
-    if (uploadTags.value.trim()) formData.append('tags', uploadTags.value.trim())
+    if (uploadTags.value.length > 0) formData.append('tags', uploadTags.value.join(','))
     try { await api.post('/knowledge/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); success++ } catch { /* ignore */ }
   }
   uploading.value = false
-  fileList.value = []; uploadTags.value = ''; showUpload.value = false
+  fileList.value = []; uploadTags.value = []; showUpload.value = false
   ElMessage.success(`成功上传 ${success} 个文件`)
   resetAndFetch()
+  fetchAllTags()
 }
 
 onMounted(() => {
   fetchDocs(0)
+  fetchAllTags()
   window.addEventListener('resize', onResize)
 })
 
@@ -286,4 +339,7 @@ onBeforeUnmount(() => {
 .upload-inner { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 16px; color: var(--admin-text-secondary, #64748b); }
 .upload-footer { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
 .pagination-wrap { display: flex; justify-content: center; margin-top: 20px; padding-top: 16px; }
+.filter-divider { width: 1px; height: 28px; background: var(--admin-border, #e2e8f0); margin: 0 4px; flex-shrink: 0; }
+.batch-actions { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; margin-bottom: 8px; }
+.batch-info { font-size: 13px; color: #dc2626; font-weight: 500; }
 </style>

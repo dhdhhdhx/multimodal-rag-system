@@ -64,10 +64,27 @@
         </el-table>
       </div>
       <div class="admin-card bottom-card chart-card">
-        <h3 class="admin-section-title">访问趋势</h3>
-        <div class="chart-placeholder">
+        <h3 class="admin-section-title">用户活跃度</h3>
+        <div v-if="loading" class="chart-placeholder">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span>图表数据加载中</span>
+        </div>
+        <div v-else-if="userActivity.length === 0" class="chart-placeholder">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>暂无数据</span>
+        </div>
+        <div v-else class="user-activity-list">
+          <div v-for="user in userActivity.slice(0, 5)" :key="user.userId" class="user-activity-item">
+            <div class="user-info">
+              <span class="user-name">{{ user.fullName || user.username }}</span>
+              <span class="user-stats">
+                提问 {{ user.queryCount }} 次 · 访问 {{ user.accessCount }} 次
+              </span>
+            </div>
+            <div class="activity-bar">
+              <div class="bar-fill" :style="{ width: getBarWidth(user) + '%' }"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -80,8 +97,22 @@ import api from '../../api'
 
 const stats = ref<any>({})
 const recentQueries = ref<any[]>([])
+const userActivity = ref<any[]>([])
+const loading = ref(true)
 
 const formatTime = (t: string) => t ? new Date(t).toLocaleString('zh-CN') : ''
+
+// 计算最大活跃度用于进度条
+const maxActivity = computed(() => {
+  if (!userActivity.value.length) return 1
+  return Math.max(...userActivity.value.map(u => (u.queryCount || 0) + (u.accessCount || 0)), 1)
+})
+
+// 计算进度条宽度
+const getBarWidth = (user: any) => {
+  const total = (user.queryCount || 0) + (user.accessCount || 0)
+  return Math.round((total / maxActivity.value) * 100)
+}
 
 const statCards = computed(() => [
   {
@@ -115,14 +146,21 @@ const statCards = computed(() => [
 ])
 
 onMounted(async () => {
+  loading.value = true
   try {
-    const [s, q] = await Promise.all([
+    const [s, q, ua] = await Promise.all([
       api.get('/admin/statistics'),
-      api.get('/statistics/queries/recent', { params: { days: 30 } })
+      api.get('/statistics/queries/recent', { params: { days: 30 } }),
+      api.get('/admin/statistics/user-activity', { params: { days: 30 } })
     ])
     stats.value = s.data
     recentQueries.value = q.data
-  } catch (e) { console.error(e) }
+    userActivity.value = ua.data
+  } catch (e) {
+    console.error('获取统计数据失败:', e)
+  } finally {
+    loading.value = false
+  }
 })
 </script>
 
@@ -144,6 +182,16 @@ onMounted(async () => {
 .bottom-card { min-height: 200px; }
 .chart-card { display: flex; flex-direction: column; }
 .chart-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--admin-text-muted, #94a3b8); font-size: 14px; }
+
+/* 用户活跃度列表样式 */
+.user-activity-list { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.user-activity-item { display: flex; flex-direction: column; gap: 8px; }
+.user-info { display: flex; justify-content: space-between; align-items: center; }
+.user-name { font-weight: 600; color: var(--admin-text, #1a1a2e); font-size: 14px; }
+.user-stats { font-size: 12px; color: var(--admin-text-muted, #94a3b8); }
+.activity-bar { height: 8px; background: var(--admin-border, #e8ecf1); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, #4361ee, #3a56d4); border-radius: 4px; transition: width 0.3s ease; }
+
 @media (max-width: 1024px) {
   .bottom-grid { grid-template-columns: 1fr; }
 }

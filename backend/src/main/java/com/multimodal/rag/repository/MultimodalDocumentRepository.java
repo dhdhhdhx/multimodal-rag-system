@@ -2,6 +2,7 @@ package com.multimodal.rag.repository;
 
 import com.multimodal.rag.model.MultimodalDocument;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MultimodalDocumentRepository extends JpaRepository<MultimodalDocument, Long> {
+public interface MultimodalDocumentRepository extends JpaRepository<MultimodalDocument, Long>, JpaSpecificationExecutor<MultimodalDocument> {
     List<MultimodalDocument> findByUser_Id(Long userId);
     List<MultimodalDocument> findByUser_IdOrSharedTrue(Long userId);
     Page<MultimodalDocument> findByUser_Id(Long userId, Pageable pageable);
