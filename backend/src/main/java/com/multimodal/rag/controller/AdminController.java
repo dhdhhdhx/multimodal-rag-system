@@ -6,6 +6,13 @@ import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.repository.UserRepository;
 import com.multimodal.rag.service.AdminService;
 import com.multimodal.rag.service.KnowledgeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,6 +29,7 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@Tag(name = "后台管理", description = "系统管理员专用接口，需要 ADMIN 角色权限")
 public class AdminController {
 
     private final AdminService adminService;
@@ -33,13 +41,23 @@ public class AdminController {
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取所有用户",
+        description = "获取系统中所有用户列表，需要管理员权限"
+    )
     public ResponseEntity<List<User>> getAllUsers() {
         return ResponseEntity.ok(adminService.getAllUsers());
     }
 
     @PutMapping("/users/{id}/toggle-active")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> toggleUserActive(@PathVariable Long id) {
+    @Operation(
+        summary = "启用/禁用用户",
+        description = "切换用户的激活状态，禁用后用户无法登录"
+    )
+    public ResponseEntity<Map<String, Object>> toggleUserActive(
+            @Parameter(description = "用户ID")
+            @PathVariable Long id) {
         User user = adminService.toggleUserActive(id);
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -50,8 +68,14 @@ public class AdminController {
 
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "修改用户角色",
+        description = "修改用户的系统角色（USER 或 ADMIN）"
+    )
     public ResponseEntity<Map<String, Object>> updateUserRole(
+            @Parameter(description = "用户ID")
             @PathVariable Long id,
+            @Parameter(description = "角色信息，包含 roleName 字段")
             @RequestBody Map<String, String> request) {
         String roleName = request.get("roleName");
         User user = adminService.updateUserRole(id, roleName);
@@ -64,8 +88,14 @@ public class AdminController {
 
     @PutMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "更新用户信息",
+        description = "修改用户的基本信息（姓名、邮箱等）"
+    )
     public ResponseEntity<Map<String, Object>> updateUser(
+            @Parameter(description = "用户ID")
             @PathVariable Long id,
+            @Parameter(description = "用户信息")
             @RequestBody Map<String, String> request) {
         User user = adminService.updateUserInfo(id,
                 request.get("fullName"),
@@ -75,6 +105,10 @@ public class AdminController {
 
     @GetMapping("/statistics")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取系统统计",
+        description = "获取系统的关键统计数据（用户数、文档数、存储使用等）"
+    )
     public ResponseEntity<Map<String, Object>> getSystemStatistics() {
         return ResponseEntity.ok(adminService.getSystemStatistics());
     }
@@ -83,13 +117,24 @@ public class AdminController {
 
     @GetMapping("/documents")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取所有文档",
+        description = "分页获取系统中所有文档，支持关键词、标签、状态筛选和排序"
+    )
     public ResponseEntity<Map<String, Object>> listAllDocuments(
+            @Parameter(description = "页码，从0开始")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页数量")
             @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "关键词搜索（文件名、内容）")
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "按标签筛选")
             @RequestParam(required = false) String tag,
+            @Parameter(description = "按状态筛选（PROCESSING/COMPLETED/FAILED）")
             @RequestParam(required = false) String status,
+            @Parameter(description = "排序字段（viewCount/uploadTime/fileName/fileSize）")
             @RequestParam(defaultValue = "uploadTime") String sortBy,
+            @Parameter(description = "排序方向（asc/desc）")
             @RequestParam(defaultValue = "desc") String sortOrder) {
 
         // Whitelist sortable fields to prevent injection
@@ -131,8 +176,14 @@ public class AdminController {
 
     @PutMapping("/documents/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "更新文档信息",
+        description = "修改文档的标签、公开状态、提取内容等信息"
+    )
     public ResponseEntity<MultimodalDocument> updateDocument(
+            @Parameter(description = "文档ID")
             @PathVariable Long id,
+            @Parameter(description = "文档信息，包含 tags/shared/extractedContent 等字段")
             @RequestBody Map<String, Object> request) {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
@@ -150,7 +201,13 @@ public class AdminController {
 
     @DeleteMapping("/documents/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteDocument(@PathVariable Long id) throws IOException {
+    @Operation(
+        summary = "删除文档",
+        description = "管理员删除指定文档，同时删除向量数据和文件"
+    )
+    public ResponseEntity<Void> deleteDocument(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id) throws IOException {
         // Reuse KnowledgeService.deleteDocument which handles:
         // - permission check (admin bypasses)
         // - file deletion (OSS or local)
@@ -168,6 +225,10 @@ public class AdminController {
 
     @GetMapping("/tags")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取所有标签",
+        description = "获取系统中所有标签及其使用次数，按使用次数降序排列"
+    )
     public ResponseEntity<List<Map<String, Object>>> listAllTags() {
         // Get tags from ALL documents (not just public)
         List<MultimodalDocument> allDocs = documentRepository.findAll();
@@ -194,7 +255,13 @@ public class AdminController {
 
     @PutMapping("/tags/rename")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> renameTag(@RequestBody Map<String, String> request) {
+    @Operation(
+        summary = "重命名标签",
+        description = "将所有使用旧标签的文档更新为新标签"
+    )
+    public ResponseEntity<Map<String, Object>> renameTag(
+            @Parameter(description = "标签重命名信息，包含 oldName 和 newName 字段")
+            @RequestBody Map<String, String> request) {
         String oldName = request.get("oldName");
         String newName = request.get("newName");
         int count = adminService.renameTag(oldName, newName);
@@ -203,7 +270,13 @@ public class AdminController {
 
     @DeleteMapping("/tags/{tagName}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> deleteTag(@PathVariable String tagName) {
+    @Operation(
+        summary = "删除标签",
+        description = "从所有文档中移除指定标签"
+    )
+    public ResponseEntity<Map<String, Object>> deleteTag(
+            @Parameter(description = "标签名称")
+            @PathVariable String tagName) {
         int count = adminService.removeTag(tagName);
         return ResponseEntity.ok(Map.of("success", true, "affected", count));
     }
@@ -212,14 +285,24 @@ public class AdminController {
 
     @GetMapping("/statistics/hot-keywords")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取热门关键词",
+        description = "获取近期查询中最热门的关键词统计"
+    )
     public ResponseEntity<List<Map<String, Object>>> hotKeywords(
+            @Parameter(description = "统计天数")
             @RequestParam(defaultValue = "30") int days) {
         return ResponseEntity.ok(adminService.getHotKeywords(days));
     }
 
     @GetMapping("/statistics/user-activity")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+        summary = "获取用户活动统计",
+        description = "获取近期用户活动数据（上传、查询等操作统计）"
+    )
     public ResponseEntity<List<Map<String, Object>>> userActivity(
+            @Parameter(description = "统计天数")
             @RequestParam(defaultValue = "30") int days) {
         return ResponseEntity.ok(adminService.getUserActivity(days));
     }

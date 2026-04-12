@@ -8,31 +8,35 @@ import com.multimodal.rag.repository.DocumentAccessLogRepository;
 import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.service.KnowledgeService;
 import com.multimodal.rag.service.OssStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
-
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
 import java.net.MalformedURLException;
+import java.nio.file.Path;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/knowledge")
 @RequiredArgsConstructor
+@Tag(name = "知识库管理", description = "文档上传、查看、删除、公开状态管理等知识库相关接口")
 public class KnowledgeController {
 
     private final KnowledgeService knowledgeService;
@@ -48,8 +52,18 @@ public class KnowledgeController {
     }
 
     @PostMapping("/upload")
+    @Operation(
+        summary = "上传文档",
+        description = "上传文件到知识库，支持多模态文档（PDF、图片、音频、视频等），自动提取内容并向量化"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "上传成功", content = @Content(schema = @Schema(implementation = MultimodalDocument.class))),
+        @ApiResponse(responseCode = "400", description = "文件格式不支持或文件过大")
+    })
     public ResponseEntity<MultimodalDocument> upload(
+            @Parameter(description = "文件对象")
             @RequestParam("file") MultipartFile file,
+            @Parameter(description = "文档标签，逗号分隔")
             @RequestParam(value = "tags", required = false) String tags) throws IOException {
         MultimodalDocument doc = knowledgeService.uploadDocument(file, getCurrentUser());
         if (tags != null && !tags.isBlank()) {
@@ -60,23 +74,59 @@ public class KnowledgeController {
     }
 
     @GetMapping("/documents")
+    @Operation(
+        summary = "获取文档列表",
+        description = "获取当前用户的知识库文档列表，包含上传时间、状态、标签等信息"
+    )
     public ResponseEntity<List<MultimodalDocument>> list() {
         return ResponseEntity.ok(knowledgeService.getAllDocuments(getCurrentUser()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) throws IOException {
+    @Operation(
+        summary = "删除文档",
+        description = "删除指定文档，同时删除向量数据和文件"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "删除成功"),
+        @ApiResponse(responseCode = "403", description = "无权删除此文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<Void> delete(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id) throws IOException {
         knowledgeService.deleteDocument(id, getCurrentUser());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/toggle-public")
-    public ResponseEntity<MultimodalDocument> togglePublic(@PathVariable Long id) {
+    @Operation(
+        summary = "切换文档公开状态",
+        description = "将文档设为公开或取消公开，公开文档可供其他用户访问"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "状态切换成功", content = @Content(schema = @Schema(implementation = MultimodalDocument.class))),
+        @ApiResponse(responseCode = "403", description = "无权修改此文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<MultimodalDocument> togglePublic(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id) {
         return ResponseEntity.ok(knowledgeService.togglePublicStatus(id, getCurrentUser()));
     }
 
     @PutMapping("/{id}/tags")
+    @Operation(
+        summary = "更新文档标签",
+        description = "修改文档的标签，支持多标签（逗号分隔）"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "标签更新成功", content = @Content(schema = @Schema(implementation = MultimodalDocument.class))),
+        @ApiResponse(responseCode = "403", description = "无权修改此文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
     public ResponseEntity<MultimodalDocument> updateTags(
+            @Parameter(description = "文档ID")
             @PathVariable Long id,
             @RequestBody Map<String, String> request) {
         MultimodalDocument doc = documentRepository.findById(id)
@@ -94,8 +144,21 @@ public class KnowledgeController {
 
     @GetMapping("/view/{id}")
     @Transactional
-    public ResponseEntity<?> view(@PathVariable Long id,
-                                   @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
+    @Operation(
+        summary = "查看原始文件",
+        description = "获取文档原始文件，支持 OSS 和本地两种存储方式，可使用代理模式避免 CORS 问题"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "文件获取成功"),
+        @ApiResponse(responseCode = "302", description = "重定向到 OSS 预签名 URL"),
+        @ApiResponse(responseCode = "403", description = "无权查看此文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<?> view(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id,
+            @Parameter(description = "是否通过后端代理（避免 CORS）")
+            @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
 
@@ -127,7 +190,18 @@ public class KnowledgeController {
     /** Get extracted content for authenticated user (own doc or public doc) */
     @GetMapping("/detail/{id}")
     @Transactional(readOnly = true)
-    public ResponseEntity<?> detail(@PathVariable Long id) {
+    @Operation(
+        summary = "获取文档详情",
+        description = "获取文档详细信息，包括提取的内容、标签、浏览次数等"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "403", description = "无权查看此文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<?> detail(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id) {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         User currentUser = getCurrentUser();
@@ -144,10 +218,18 @@ public class KnowledgeController {
 
     @GetMapping("/public")
     @Transactional(readOnly = true)
+    @Operation(
+        summary = "获取公开文档列表",
+        description = "分页获取所有公开文档，支持按标签或关键词筛选，按浏览量和上传时间排序"
+    )
     public ResponseEntity<Map<String, Object>> listPublic(
+            @Parameter(description = "页码，从0开始")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页数量")
             @RequestParam(defaultValue = "9") int size,
+            @Parameter(description = "按标签筛选")
             @RequestParam(required = false) String tag,
+            @Parameter(description = "关键词搜索")
             @RequestParam(required = false) String keyword) {
         PageRequest pageable = PageRequest.of(page, size);
         Page<MultimodalDocument> result;
@@ -172,6 +254,10 @@ public class KnowledgeController {
 
     @GetMapping("/public/tags")
     @Transactional(readOnly = true)
+    @Operation(
+        summary = "获取公开文档标签列表",
+        description = "获取所有公开文档的标签及其使用次数，按使用次数降序排列"
+    )
     public ResponseEntity<List<Map<String, Object>>> listTags() {
         List<String> rawTags = documentRepository.findAllPublicTags();
         Map<String, Integer> tagCounts = new HashMap<>();
@@ -196,6 +282,10 @@ public class KnowledgeController {
     }
 
     @GetMapping("/public/count")
+    @Operation(
+        summary = "获取公开文档总数",
+        description = "返回已完成处理的公开文档总数"
+    )
     public ResponseEntity<Long> publicCount() {
         return ResponseEntity.ok(documentRepository.countBySharedTrueAndStatus("COMPLETED"));
     }
@@ -203,8 +293,21 @@ public class KnowledgeController {
     /** Public view — no auth required, only works for public documents */
     @GetMapping("/public/view/{id}")
     @Transactional
-    public ResponseEntity<?> publicView(@PathVariable Long id,
-                                        @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
+    @Operation(
+        summary = "查看公开文档原始文件",
+        description = "无需认证即可查看公开文档的原始文件"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "文件获取成功"),
+        @ApiResponse(responseCode = "302", description = "重定向到 OSS 预签名 URL"),
+        @ApiResponse(responseCode = "403", description = "该文档不是公开文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<?> publicView(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id,
+            @Parameter(description = "是否通过后端代理（避免 CORS）")
+            @RequestParam(value = "proxy", defaultValue = "false") boolean proxy) throws MalformedURLException {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         if (!doc.isShared()) {
@@ -219,7 +322,18 @@ public class KnowledgeController {
     /** Get document detail (extracted content) — public doc */
     @GetMapping("/public/detail/{id}")
     @Transactional(readOnly = true)
-    public ResponseEntity<?> publicDetail(@PathVariable Long id) {
+    @Operation(
+        summary = "获取公开文档详情",
+        description = "无需认证即可获取公开文档的详细信息"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "403", description = "该文档不是公开文档"),
+        @ApiResponse(responseCode = "404", description = "文档不存在")
+    })
+    public ResponseEntity<?> publicDetail(
+            @Parameter(description = "文档ID")
+            @PathVariable Long id) {
         MultimodalDocument doc = documentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Document not found"));
         if (!doc.isShared()) {
@@ -231,7 +345,12 @@ public class KnowledgeController {
     /** Get recommended/hot public documents */
     @GetMapping("/public/hot")
     @Transactional(readOnly = true)
+    @Operation(
+        summary = "获取热门公开文档",
+        description = "获取浏览量最高的公开文档列表"
+    )
     public ResponseEntity<List<MultimodalDocument>> hotDocs(
+            @Parameter(description = "返回数量限制")
             @RequestParam(defaultValue = "6") int limit) {
         return ResponseEntity.ok(documentRepository.findHotPublicDocs(PageRequest.of(0, limit)));
     }

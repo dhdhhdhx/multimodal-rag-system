@@ -35,6 +35,15 @@ public class OssStorageService {
     @PostConstruct
     public void init() {
         try {
+            // Check if OSS configuration is provided
+            if (accessKeyId == null || accessKeyId.isBlank() ||
+                accessKeySecret == null || accessKeySecret.isBlank() ||
+                bucketName == null || bucketName.isBlank()) {
+                log.warn("OSS configuration not provided. File upload will fall back to local storage.");
+                ossClient = null;
+                return;
+            }
+
             ossClient = new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
             // Create bucket if not exists
             if (!ossClient.doesBucketExist(bucketName)) {
