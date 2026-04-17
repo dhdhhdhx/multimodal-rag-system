@@ -29,7 +29,6 @@ const handleLogin = async () => {
   }
 }
 
-const goToRegister = () => router.push('/register')
 </script>
 
 <template>

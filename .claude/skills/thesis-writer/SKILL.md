@@ -54,7 +54,7 @@ description: |
 
 ### 行距与缩进
 - 正文：1.5倍行距
-- 段落：首行缩进2字符（约1134 DXA）
+- 段落：首行缩进2字符（约567 DXA，1字符≈567 DXA @ 小四12pt）
 - 段前段后：不设间距
 - 章节标题前：空一行
 
@@ -68,10 +68,21 @@ description: |
 ```
 
 ### 图表规范
+- **图名**：五号黑体，在图**下方**居中（先放图片，再放图名）
 - 表题：五号黑体，在表上方居中
-- 图题：五号黑体，在图下方居中
 - 表格：采用三线表
 - 图表编号：按章节顺序（如图1.1、表2.3）
+
+**代码实现注意**：插入图片和图名时，必须先放图片，再放图名：
+```javascript
+// 正确顺序：图片在前，图名在后
+createImagePara("图片路径.png"),  // 图片
+figCaption("图1.1 图片名称"),      // 图名在下方
+
+// 错误顺序：图名在上，图片在下（不符合论文格式）
+figCaption("图1.1 图片名称"),      // 错误：图名在上方
+createImagePara("图片路径.png"),  // 错误：图片在下方
+```
 
 ---
 
@@ -184,8 +195,8 @@ const FONT_SIZE_H3 = 24;  // 小四
 
 // 行距：1.5倍 = 360
 const LINE_SPACING = 360;
-// 首行缩进：2字符 ≈ 1134 DXA
-const FIRST_LINE_INDENT = 1134;
+// 首行缩进：2字符 ≈ 567 DXA（1字符≈567 DXA @ 12pt）
+const FIRST_LINE_INDENT = 567;
 
 // 创建正文段落
 function createBodyParagraph(text) {
@@ -321,7 +332,7 @@ NODE_PATH="D:/java/nvm/v24.8.0/node_modules" node create_thesis.js
 | `FONT_SIZE_H1` | 30 | 小三=15pt |
 | `FONT_SIZE_H2` | 28 | 四号=14pt |
 | `LINE_SPACING` | 360 | 1.5倍行距 |
-| `FIRST_LINE_INDENT` | 1134 | 首行缩进2字符 |
+| `FIRST_LINE_INDENT` | 567 | 首行缩进2字符（1字符≈567 DXA @ 12pt）|
 
 ---
 
@@ -425,7 +436,7 @@ pip install defusedxml
 - [ ] 正文字体：`font: "宋体"`
 - [ ] 标题字体：`font: "黑体"`
 - [ ] 行距：`spacing: { line: 360 }`
-- [ ] 首行缩进：`indent: { firstLine: 1134 }`
+- [ ] 首行缩进：`indent: { firstLine: 567 }`
 - [ ] 表格宽度：所有列宽之和等于 CONTENT_WIDTH
 
 ### 错误6：页边距设置不生效

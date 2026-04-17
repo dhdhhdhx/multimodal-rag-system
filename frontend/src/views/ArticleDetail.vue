@@ -132,68 +132,216 @@ const viewOriginal = async () => {
   const fileName = article.value?.fileName || '文件'
   const token = getAccessToken()
 
-  // Helper: open URL via hidden <a> element so browser handles download natively
-  const openFileLink = (url: string, name: string) => {
-    const a = document.createElement('a')
-    a.href = url
-    a.target = '_blank'
-    a.rel = 'noopener noreferrer'
-    a.download = name
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  // HTML 转义辅助函数
+  const escapeHtml = (str: string) => {
+    const div = document.createElement('div')
+    div.textContent = str
+    return div.innerHTML
   }
 
-  // Try to get a redirect URL from the backend, then let the browser navigate to it
-  // We only use fetch with redirect:'manual' to capture the 302 Location header —
-  // we never fetch the actual file content through JavaScript.
-  const tryOpenViaBackend = async (url: string, headers?: Record<string, string>): Promise<boolean> => {
-    const res = await fetch(url, { headers, redirect: 'manual' })
-    if (res.status === 302 || res.status === 301 || res.status === 307) {
-      const location = res.headers.get('Location')
-      if (location) {
-        openFileLink(location, fileName)
-        return true
-      }
+  // 判断文件类型
+  const isDownloadable = () => {
+    const lower = fileName.toLowerCase()
+    return lower.endsWith('.pdf') ||
+           lower.endsWith('.doc') || lower.endsWith('.docx') ||
+           lower.endsWith('.xls') || lower.endsWith('.xlsx') ||
+           lower.endsWith('.ppt') || lower.endsWith('.pptx')
+  }
+
+  const isPreviewable = () => {
+    const lower = fileName.toLowerCase()
+    // 图片
+    if (/\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(lower)) return true
+    // 音视频
+    if (/\.(mp3|wav|ogg|m4a|flac|mp4|webm|avi|mov|mkv)$/i.test(lower)) return true
+    // 文本
+    if (/\.(txt|md|html|css|js|json|xml|csv)$/i.test(lower)) return true
+    return false
+  }
+
+  // 下载文件
+  const downloadFile = async (url: string) => {
+    const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+    const res = await fetch(url, { headers })
+    if (res.ok) {
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+      return true
     }
-    // If backend returned the file directly (proxy mode or seed doc with no file),
-    // it will be text/plain content — open as HTML preview
+    if (res.status === 401) {
+      ElMessage.error('登录已过期，请重新登录')
+    } else if (res.status === 403) {
+      ElMessage.error('无权查看此文件')
+    } else if (res.status === 404) {
+      ElMessage.error('文件不存在，可能已被删除')
+    }
+    return false
+  }
+
+  // 预览文件
+  const previewFile = async (url: string) => {
+    const headers: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {}
+    const res = await fetch(url, { headers })
     if (res.ok) {
       const contentType = res.headers.get('Content-Type') || ''
-      if (contentType.includes('text/plain')) {
-        const text = await res.text()
+      const blob = await res.blob()
+
+      // 检查是否为空内容
+      if (blob.size === 0) {
+        ElMessage.warning('该文档没有原始文件，仅支持在线预览')
+        return true
+      }
+
+      const blobUrl = URL.createObjectURL(blob)
+
+      // 根据内容类型创建合适的预览页面
+      if (contentType.startsWith('audio/')) {
+        // 音频：创建带标题的 HTML 页面
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(fileName)}</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .container { text-align: center; max-width: 600px; padding: 20px; }
+    h1 { font-size: 1.2rem; margin-bottom: 20px; word-break: break-all; color: #e0e0e0; }
+    audio { width: 100%; max-width: 500px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>${escapeHtml(fileName)}</h1>
+    <audio controls autoplay>
+      <source src="${blobUrl}" type="${contentType}">
+      您的浏览器不支持音频播放
+    </audio>
+  </div>
+</body>
+</html>`
+        const htmlBlob = new Blob([html], { type: 'text/html' })
+        const htmlUrl = URL.createObjectURL(htmlBlob)
+        window.open(htmlUrl, '_blank')
+        setTimeout(() => { URL.revokeObjectURL(blobUrl); URL.revokeObjectURL(htmlUrl) }, 60000)
+      } else if (contentType.startsWith('video/')) {
+        // 视频：创建带标题的 HTML 页面
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(fileName)}</title>
+  <style>
+    body { margin: 0; background: #000; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    h1 { font-size: 1rem; color: #fff; margin: 10px 0; padding: 0 20px; text-align: center; word-break: break-all; }
+    video { max-width: 100%; max-height: 80vh; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(fileName)}</h1>
+  <video controls autoplay>
+    <source src="${blobUrl}" type="${contentType}">
+    您的浏览器不支持视频播放
+  </video>
+</body>
+</html>`
+        const htmlBlob = new Blob([html], { type: 'text/html' })
+        const htmlUrl = URL.createObjectURL(htmlBlob)
+        window.open(htmlUrl, '_blank')
+        setTimeout(() => { URL.revokeObjectURL(blobUrl); URL.revokeObjectURL(htmlUrl) }, 60000)
+      } else if (contentType.startsWith('image/')) {
+        // 图片：创建带标题的 HTML 页面
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(fileName)}</title>
+  <style>
+    body { margin: 0; background: #1e1e1e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    h1 { font-size: 1rem; color: #e0e0e0; margin: 10px 0; padding: 0 20px; text-align: center; word-break: break-all; }
+    img { max-width: 95vw; max-height: 85vh; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(fileName)}</h1>
+  <img src="${blobUrl}" alt="${escapeHtml(fileName)}">
+</body>
+</html>`
+        const htmlBlob = new Blob([html], { type: 'text/html' })
+        const htmlUrl = URL.createObjectURL(htmlBlob)
+        window.open(htmlUrl, '_blank')
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl)
+          URL.revokeObjectURL(htmlUrl)
+        }, 60000)
+      } else if (contentType.includes('text/plain')) {
+        // 文本内容特殊处理
+        const text = await blob.text()
         if (text.length < 200) {
           ElMessage.warning('该文档没有原始文件，仅支持在线预览')
         } else {
           const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title>
+          const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(fileName)}</title>
             <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#1e293b;background:#f8fafc;}</style></head>
             <body>${escaped}</body></html>`
-          const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-          openFileLink(blobUrl, fileName)
+          const htmlBlob = new Blob([html], { type: 'text/html' })
+          const htmlUrl = URL.createObjectURL(htmlBlob)
+          const a = document.createElement('a')
+          a.href = htmlUrl
+          a.target = '_blank'
+          a.click()
+          setTimeout(() => {
+            URL.revokeObjectURL(blobUrl)
+            URL.revokeObjectURL(htmlUrl)
+          }, 60000)
         }
-        return true
+      } else {
+        // 其他文件直接打开
+        window.open(blobUrl, '_blank')
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
       }
+      return true
     }
-    if (res.status === 403) { ElMessage.error('无权查看此文件'); return true }
-    if (res.status === 404) { ElMessage.error('文件不存在，可能已被删除'); return true }
+    if (res.status === 401) {
+      ElMessage.error('登录已过期，请重新登录')
+    } else if (res.status === 403) {
+      ElMessage.error('无权查看此文件')
+    } else if (res.status === 404) {
+      ElMessage.error('文件不存在，可能已被删除')
+    }
     return false
   }
 
-  // Strategy 1: Public endpoint (no auth needed for public docs)
+  // 优先尝试公开接口
+  let success = false
   try {
-    const opened = await tryOpenViaBackend(`/api/knowledge/public/view/${id}`)
-    if (opened) return
+    if (isDownloadable()) {
+      success = await downloadFile(`/api/knowledge/public/view/${id}?proxy=true`)
+    } else if (isPreviewable()) {
+      success = await previewFile(`/api/knowledge/public/view/${id}?proxy=true`)
+    } else {
+      success = await downloadFile(`/api/knowledge/public/view/${id}?proxy=true`)
+    }
+    if (success) return
   } catch { /* fall through */ }
 
-  // Strategy 2: Authenticated endpoint (use token from centralized store)
+  // 如果公开接口失败，尝试带 token 的接口
   if (token) {
     try {
-      const opened = await tryOpenViaBackend(`/api/knowledge/view/${id}`, {
-        'Authorization': `Bearer ${token}`
-      })
-      if (opened) return
+      if (isDownloadable()) {
+        success = await downloadFile(`/api/knowledge/view/${id}?proxy=true`)
+      } else if (isPreviewable()) {
+        success = await previewFile(`/api/knowledge/view/${id}?proxy=true`)
+      } else {
+        success = await downloadFile(`/api/knowledge/view/${id}?proxy=true`)
+      }
+      if (success) return
     } catch { /* fall through */ }
   }
 

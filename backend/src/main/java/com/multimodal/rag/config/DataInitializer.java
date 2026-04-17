@@ -43,12 +43,19 @@ public class DataInitializer implements CommandLineRunner {
         Permission writePermission = createPermissionIfNotFound("WRITE", "DOCUMENT", "WRITE");
         Permission deletePermission = createPermissionIfNotFound("DELETE", "DOCUMENT", "DELETE");
         Permission adminPermission = createPermissionIfNotFound("ADMIN_ACCESS", "SYSTEM", "ALL");
+        Permission advancedRetrievalPermission = createPermissionIfNotFound("ADVANCED_RETRIEVAL", "RAG", "SEARCH_PLUS");
+        Permission priorityRecommendationPermission = createPermissionIfNotFound("PRIORITY_RECOMMENDATION", "DISCOVERY", "PRIORITY");
+        Permission topicPermission = createPermissionIfNotFound("TOPIC_CREATE", "KNOWLEDGE", "CREATE_TOPIC");
 
         // 2. Initialize Roles
         Role adminRole = createRoleIfNotFound("ADMIN", "System Administrator", 
-                Set.of(readPermission, writePermission, deletePermission, adminPermission));
+                Set.of(readPermission, writePermission, deletePermission, adminPermission,
+                        advancedRetrievalPermission, priorityRecommendationPermission, topicPermission));
         Role userRole = createRoleIfNotFound("USER", "Standard User", 
                 Set.of(readPermission, writePermission));
+        Role premiumRole = createRoleIfNotFound("PREMIUM", "Premium Member",
+                Set.of(readPermission, writePermission, advancedRetrievalPermission,
+                        priorityRecommendationPermission, topicPermission));
 
         // 3. Initialize Admin User
         User admin = userRepository.findByUsername("admin").orElse(null);
@@ -76,6 +83,19 @@ public class DataInitializer implements CommandLineRunner {
             userRepository.save(testUser);
             log.info("Created default test user: user/user123");
         }
+
+        User premiumUser = userRepository.findByUsername("premium").orElse(null);
+        if (premiumUser == null) {
+            premiumUser = new User();
+            premiumUser.setUsername("premium");
+            premiumUser.setFullName("Premium Member");
+            premiumUser.setEmail("premium@multimodal.com");
+            premiumUser.setIsActive(true);
+        }
+        premiumUser.setPasswordHash(passwordEncoder.encode("premium123"));
+        premiumUser.setRoles(new HashSet<>(Set.of(premiumRole)));
+        userRepository.save(premiumUser);
+        log.info("Premium user ready: premium/premium123");
 
         // 5. Initialize Seed Documents for Discovery Section
         initializeSeedDocuments(userRole);

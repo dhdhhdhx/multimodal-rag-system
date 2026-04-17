@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +36,24 @@ public class KnowledgeService {
     private final OssStorageService ossStorageService;
 
     private static final String UPLOAD_DIR = "uploads";
+
+    private String buildMediaSummary(String modality, String fileName, String summary, String transcript, List<String> tags) {
+        List<String> sections = new ArrayList<>();
+        sections.add("[" + ("IMAGE".equals(modality) ? "图片内容" : "VIDEO".equals(modality) ? "视频内容" : "多媒体内容") + "]");
+        sections.add("文件名：" + fileName);
+
+        if (summary != null && !summary.isBlank()) {
+            sections.add(summary);
+        } else if (tags != null && !tags.isEmpty()) {
+            sections.add(("IMAGE".equals(modality) ? "图片要点：" : "视频画面要点：") + String.join("、", tags));
+        }
+
+        if (transcript != null && !transcript.isBlank()) {
+            sections.add("语音转写：\n" + transcript);
+        }
+
+        return String.join("\n\n", sections);
+    }
 
     public MultimodalDocument uploadDocument(MultipartFile file, User user) throws IOException {
         // Step 1: Save file locally for processing (temp)
@@ -87,7 +106,19 @@ public class KnowledgeService {
             
             if ("TEXT".equals(modality)) {
                 // Traditional text processing with chunking
+                log.info("Starting TEXT processing for file: {}, content-type: {}", file.getOriginalFilename(), file.getContentType());
                 content = parserService.parseDocument(targetPath, file.getOriginalFilename(), file.getContentType());
+                int contentLen = content != null ? content.length() : 0;
+                log.info("Extracted content length: {} chars for file: {}", contentLen, file.getOriginalFilename());
+
+                if (contentLen == 0) {
+                    log.error("No content extracted from file: {}, setting status to FAILED", file.getOriginalFilename());
+                    doc.setStatus("FAILED");
+                    doc.setExtractedContent("无法提取文件内容，请检查文件格式是否正确");
+                    repository.save(doc);
+                    throw new RuntimeException("Failed to extract content from file: " + file.getOriginalFilename());
+                }
+
                 doc.setExtractedContent(content.length() > 5000 ? content.substring(0, 5000) + "..." : content);
 
                 // Split into chunks for better retrieval
@@ -132,7 +163,8 @@ public class KnowledgeService {
                 // For audio, also get transcription
                 if ("AUDIO".equals(modality)) {
                     content = multimodalService.transcribeAudio(fileBytes, file.getOriginalFilename());
-                    doc.setExtractedContent("[Audio Transcription] " + (content.length() > 5000 ? content.substring(0, 5000) + "..." : content));
+                    String audioContent = "[音频转写]\n" + content;
+                    doc.setExtractedContent(audioContent.length() > 5000 ? audioContent.substring(0, 5000) + "..." : audioContent);
 
                     // Chunk the transcription for better retrieval
                     List<String> audioChunks = chunkingService.chunkText(content);
@@ -152,27 +184,33 @@ public class KnowledgeService {
                     }
                 } else {
                     // IMAGE or VIDEO processing
-                    doc.setExtractedContent("[" + modality + " File] " + file.getOriginalFilename());
-
                     PythonEmbeddingClient.EmbeddingResponse response = multimodalService.embedByModality(fileBytes, file.getOriginalFilename(), modality);
                     List<Double> embedding = response.getEmbedding();
+                    String transcript = response.getText();
+                    content = buildMediaSummary(modality, file.getOriginalFilename(), response.getSummary(), transcript, response.getTags());
+                    doc.setExtractedContent(content.length() > 5000 ? content.substring(0, 5000) + "..." : content);
 
-                    if (response.getTags() != null && !response.getTags().isEmpty()) {
-                        String tags = String.join(", ", response.getTags());
-                        content = "[" + modality + " Content] File: " + file.getOriginalFilename() +
-                                  ". This " + modality.toLowerCase() + " shows: " + tags;
-                        doc.setExtractedContent(content);
-                    } else {
-                        content = "[" + modality + " File] " + file.getOriginalFilename();
-                    }
-
-                    vectorStoreService.addDocumentWithEmbedding(embedding, content, Map.of(
+                    Map<String, Object> baseMeta = Map.of(
                         "documentId", doc.getId(),
                         "userId", user.getId(),
                         "fileName", doc.getFileName(),
                         "fileType", doc.getFileType(),
                         "modality", modality
-                    ));
+                    );
+
+                    vectorStoreService.addDocumentWithEmbedding(embedding, content, baseMeta);
+
+                    if ("VIDEO".equals(modality) && transcript != null && !transcript.isBlank()) {
+                        List<String> videoChunks = chunkingService.chunkText(transcript);
+                        for (int i = 0; i < videoChunks.size(); i++) {
+                            String chunk = videoChunks.get(i);
+                            Map<String, Object> chunkMeta = new java.util.HashMap<>(baseMeta);
+                            chunkMeta.put("chunkIndex", i);
+                            chunkMeta.put("totalChunks", videoChunks.size());
+                            chunkMeta.put("contentType", "video_transcript");
+                            vectorStoreService.addDocument(chunk, chunkMeta);
+                        }
+                    }
                 }
             }
             

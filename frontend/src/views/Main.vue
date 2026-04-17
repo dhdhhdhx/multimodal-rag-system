@@ -90,15 +90,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import api, { getAccessToken } from '../api'
 import MarkdownIt from 'markdown-it'
 import UserDashboard from '../components/UserDashboard.vue'
 import DiscoverySection from '../components/DiscoverySection.vue'
-import { Plus, Document as DocIcon, View, Delete, More, Lock, Share, Promotion, Setting } from '@element-plus/icons-vue'
+import { Plus, Document as DocIcon, View, Delete, More, Lock, Share, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-const router = useRouter()
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const documents = ref<any[]>([])
 const chatHistory = ref<{role: string, content: string}[]>([])
@@ -107,19 +105,6 @@ const loading = ref(false)
 const messageBox = ref<any>(null)
 const activeTab = ref('docs')
 const refreshCounter = ref(0)
-
-const isAdminUser = computed(() => {
-  const userInfoStr = localStorage.getItem('user_info')
-  if (!userInfoStr) return false
-  try {
-    const user = JSON.parse(userInfoStr)
-    if (!user || !user.roles) return false
-    return user.roles.some((role: any) => {
-      if (typeof role === 'string') return role === 'ADMIN'
-      return role.name === 'ADMIN'
-    })
-  } catch (e) { return false }
-})
 
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${getAccessToken() || ''}`

@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -14,12 +15,18 @@ import java.nio.file.Path;
 @Slf4j
 public class DocumentParserService {
 
-    private final Tika tika = new Tika();
+    private final Tika tika;
+
+    public DocumentParserService() {
+        this.tika = new Tika();
+        // 设置 Tika 默认字符编码为 UTF-8
+        System.setProperty("tika.default.encoding", "UTF-8");
+    }
 
     /**
      * Parses the content of a multipart file.
      * Uses Apache Tika for most document types (PDF, Word, etc.).
-     * Special handling is planned for images (OCR) and audio/video (Whisper).
+     * Special handling is planned for images (OCR) and audio/video (Whisper integration).
      *
      * @param file The file to be parsed.
      * @return Extracted plain text content.
@@ -40,10 +47,22 @@ public class DocumentParserService {
 
         // Use Tika for text-based or standard office documents
         try (InputStream stream = Files.newInputStream(filePath)) {
-            return tika.parseToString(stream);
+            // Tika 会自动检测编码，但我们也明确设置 UTF-8
+            String content = tika.parseToString(stream);
+            int contentLength = content != null ? content.length() : 0;
+            log.info("Tika parsed {} chars from file: {}", contentLength, originalFilename);
+
+            if (contentLength == 0) {
+                log.warn("Tika returned empty content for file: {}", originalFilename);
+            } else if (contentLength < 50) {
+                log.warn("Tika returned very short content ({} chars) for file: {}, content preview: {}",
+                        contentLength, originalFilename, content);
+            }
+
+            return content;
         } catch (Exception e) {
-            log.error("Error parsing document with Tika: {}", originalFilename, e);
-            throw new IOException("Failed to parse document content using Tika", e);
+            log.error("Error parsing document with Tika: {}, error: {}", originalFilename, e.getMessage(), e);
+            throw new IOException("Failed to parse document content using Tika: " + e.getMessage(), e);
         }
     }
 

@@ -12,7 +12,8 @@ const registerForm = ref({
   email: '',
   password: '',
   confirmPassword: '',
-  fullName: ''
+  fullName: '',
+  roleName: 'USER'
 })
 
 const loading = ref(false)
@@ -46,7 +47,6 @@ const handleRegister = async () => {
   }
 }
 
-const goToLogin = () => { router.push('/login') }
 </script>
 
 <template>
@@ -90,6 +90,13 @@ const goToLogin = () => { router.push('/login') }
           <div class="form-field">
             <label class="field-label" for="reg-fullname">姓名</label>
             <el-input id="reg-fullname" v-model="registerForm.fullName" placeholder="请输入姓名（可选）" :prefix-icon="Postcard" size="large" />
+          </div>
+          <div class="form-field">
+            <label class="field-label">账户类型</label>
+            <el-select v-model="registerForm.roleName" size="large">
+              <el-option label="普通会员" value="USER" />
+              <el-option label="高级会员" value="PREMIUM" />
+            </el-select>
           </div>
           <div class="form-row">
             <div class="form-field">

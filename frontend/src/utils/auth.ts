@@ -44,6 +44,24 @@ export const isAdmin = (): boolean => {
     return hasRole('ADMIN')
 }
 
+export const isPremium = (): boolean => {
+    return hasRole('PREMIUM')
+}
+
+export const getPrimaryRole = (): string => {
+    const user = getCurrentUser()
+    if (!user || !user.roles || user.roles.length === 0) return 'USER'
+    const firstRole = user.roles[0] as any
+    return typeof firstRole === 'string' ? firstRole : (firstRole.name || 'USER')
+}
+
+export const getRoleLabel = (): string => {
+    const role = getPrimaryRole()
+    if (role === 'ADMIN') return '管理员'
+    if (role === 'PREMIUM') return '高级会员'
+    return '普通会员'
+}
+
 export const hasPermission = (_permissionName: string): boolean => {
     const user = getCurrentUser()
     if (!user || !user.roles) return false

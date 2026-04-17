@@ -248,6 +248,8 @@ public class PythonEmbeddingClient {
         private int dimension;
         private boolean aligned;
         private List<String> tags;
+        private String text;
+        private String summary;
     }
 
     @lombok.Data

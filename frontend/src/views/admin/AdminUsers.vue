@@ -18,6 +18,7 @@
       </el-input>
       <el-select v-model="filterRole" placeholder="角色" clearable style="width: 120px" @change="fetchUsers">
         <el-option label="ADMIN" value="ADMIN" />
+        <el-option label="PREMIUM" value="PREMIUM" />
         <el-option label="USER" value="USER" />
       </el-select>
       <el-select v-model="filterStatus" placeholder="状态" clearable style="width: 120px" @change="fetchUsers">
@@ -44,9 +45,10 @@
         </el-table-column>
         <el-table-column label="角色" width="110">
           <template #default="{ row }">
-            <span v-if="!row._editing" class="admin-role-tag" :class="row._role === 'ADMIN' ? 'role-admin' : 'role-user'">{{ row._role }}</span>
+            <span v-if="!row._editing" class="admin-role-tag" :class="row._role === 'ADMIN' ? 'role-admin' : row._role === 'PREMIUM' ? 'role-premium' : 'role-user'">{{ row._role }}</span>
             <el-select v-else v-model="row._role" size="small">
               <el-option label="ADMIN" value="ADMIN" />
+              <el-option label="PREMIUM" value="PREMIUM" />
               <el-option label="USER" value="USER" />
             </el-select>
           </template>
@@ -190,4 +192,27 @@ onMounted(fetchUsers)
 </script>
 
 <style scoped>
+.admin-role-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role-admin {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.role-premium {
+  background: rgba(59, 130, 246, 0.14);
+  color: #2563eb;
+}
+
+.role-user {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+}
 </style>

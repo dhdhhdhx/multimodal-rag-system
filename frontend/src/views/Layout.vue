@@ -21,6 +21,7 @@
         <nav class="nav-links">
           <router-link to="/" exact-active-class="active">首页</router-link>
           <router-link to="/tags" active-class="active">标签</router-link>
+          <router-link to="/topics" active-class="active">话题</router-link>
           <router-link to="/search" active-class="active">搜索</router-link>
           <router-link to="/ai" class="ai-link" active-class="active">AI 问答</router-link>
         </nav>
@@ -31,6 +32,7 @@
               <div class="user-avatar">
                 <span class="avatar-circle">{{ username.charAt(0).toUpperCase() }}</span>
                 <span class="avatar-name">{{ username }}</span>
+                <span class="role-badge" :class="{ admin: isAdmin }">{{ roleLabel }}</span>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -63,6 +65,7 @@
           <nav class="mobile-nav-links">
             <router-link to="/" exact-active-class="active" @click="closeMobileMenu">首页</router-link>
             <router-link to="/tags" active-class="active" @click="closeMobileMenu">标签</router-link>
+            <router-link to="/topics" active-class="active" @click="closeMobileMenu">话题</router-link>
             <router-link to="/search" active-class="active" @click="closeMobileMenu">搜索</router-link>
             <router-link to="/ai" class="ai-link" active-class="active" @click="closeMobileMenu">AI 问答</router-link>
             <router-link v-if="isAuthenticated" to="/manage" class="manage-link" active-class="active" @click="closeMobileMenu">管理</router-link>
@@ -72,6 +75,7 @@
               <div class="mobile-user-info">
                 <span class="avatar-circle">{{ username.charAt(0).toUpperCase() }}</span>
                 <span class="avatar-name">{{ username }}</span>
+                <span class="role-badge" :class="{ admin: isAdmin }">{{ roleLabel }}</span>
               </div>
               <button v-if="isAdmin" class="mobile-action-btn" @click="handleCommand('admin')">系统管理</button>
               <button class="mobile-action-btn mobile-action-btn--logout" @click="handleCommand('logout')">退出登录</button>
@@ -92,6 +96,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Menu as MenuIcon } from '@element-plus/icons-vue'
 import { clearTokens, getAccessToken } from '../api'
+import { getRoleLabel, isAdmin as checkIsAdmin } from '../utils/auth'
 
 const showMobileMenu = ref(false)
 
@@ -106,12 +111,9 @@ const username = computed(() => {
   } catch { return '' }
 })
 
-const isAdmin = computed(() => {
-  try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    return info.roles?.includes('ADMIN') || false
-  } catch { return false }
-})
+const isAdmin = computed(() => checkIsAdmin())
+
+const roleLabel = computed(() => getRoleLabel())
 
 const handleCommand = (cmd: string) => {
   if (cmd === 'logout') {
@@ -223,6 +225,20 @@ const closeMobileMenu = () => {
   font-weight: 700;
 }
 .avatar-name { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.role-badge {
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+.role-badge.admin {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.24);
+}
 .login-link {
   text-decoration: none;
   color: var(--accent);

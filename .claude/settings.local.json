@@ -10,7 +10,10 @@
       "Bash(mvn compile:*)",
       "Bash(cat:*)",
       "Bash(python:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(NODE_PATH=\"D:/java/nvm/v24.8.0/node_modules\" node \"E:/ai-framework/multimodal-rag-system/write_chapters_1_4.js\")",
+      "Bash(git ls-files:*)",
+      "Bash(git add:*)"
     ]
   }
 }

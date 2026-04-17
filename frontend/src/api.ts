@@ -182,3 +182,39 @@ api.interceptors.response.use(
 // ======================== Export ========================
 
 export default api
+
+// ======================== Topic API Helpers ========================
+
+export const topicApi = {
+  /** 获取话题详情 */
+  getDetail: (id: number) => api.get(`/topics/${id}`),
+
+  /** 获取话题下的所有文档 */
+  getDocuments: (id: number) => api.get(`/topics/${id}/documents`),
+
+  /** 订阅话题 */
+  subscribe: (id: number) => api.post(`/topics/${id}/subscribe`),
+
+  /** 取消订阅话题 */
+  unsubscribe: (id: number) => api.delete(`/topics/${id}/subscribe`),
+
+  /** 获取订阅状态 */
+  getSubscriptionStatus: (id: number) => api.get(`/topics/${id}/subscription-status`),
+
+  /** 分页获取话题文档（Phase 2） */
+  getDocumentsPaged: (id: number, params: { keyword?: string; page?: number; size?: number }) =>
+    api.get(`/topics/${id}/documents/paged`, { params }),
+
+  /** 获取推荐话题（Phase 3） */
+  getRecommended: (limit = 6) => api.get('/topics/recommended', { params: { limit } }),
+
+  /** 获取热门话题（Phase 3） */
+  getHot: (limit = 6) => api.get('/topics/hot', { params: { limit } }),
+
+  /** 分页获取公开话题（Phase 3） */
+  getPublicPaged: (params: { keyword?: string; page?: number; size?: number }) =>
+    api.get('/topics/public/paged', { params }),
+
+  /** 获取我的订阅列表（Phase 3） */
+  getMySubscriptions: () => api.get('/topics/subscribed'),
+}

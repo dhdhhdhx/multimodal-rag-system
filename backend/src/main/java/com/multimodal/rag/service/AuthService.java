@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -51,10 +52,17 @@ public class AuthService {
         user.setFullName(request.getFullName());
         user.setIsActive(true);
         
-        // Assign default USER role
-        Role userRole = roleRepository.findByName("USER")
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
-        user.setRoles(new HashSet<>(Set.of(userRole)));
+        String requestedRole = request.getRoleName() == null || request.getRoleName().isBlank()
+                ? "USER"
+                : request.getRoleName().trim().toUpperCase(Locale.ROOT);
+
+        if (!Set.of("USER", "PREMIUM").contains(requestedRole)) {
+            throw new RuntimeException("Unsupported role: " + requestedRole);
+        }
+
+        Role assignedRole = roleRepository.findByName(requestedRole)
+                .orElseThrow(() -> new RuntimeException("Requested role not found: " + requestedRole));
+        user.setRoles(new HashSet<>(Set.of(assignedRole)));
         
         user = userRepository.save(user);
         log.info("New user registered: {}", user.getUsername());

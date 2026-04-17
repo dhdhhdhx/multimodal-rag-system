@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,8 +40,12 @@ public class AdminService {
     public User updateUserRole(Long userId, String roleName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+        String normalizedRole = roleName == null ? "" : roleName.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("USER", "PREMIUM", "ADMIN").contains(normalizedRole)) {
+            throw new RuntimeException("Unsupported role: " + roleName);
+        }
+        Role role = roleRepository.findByName(normalizedRole)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + normalizedRole));
         user.setRoles(new HashSet<>(Set.of(role)));
         return userRepository.save(user);
     }

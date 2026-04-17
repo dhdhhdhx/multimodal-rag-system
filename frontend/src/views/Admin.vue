@@ -55,8 +55,8 @@
             <template #default="{ row }">
               <el-select v-model="row.roleToUpdate" placeholder="选择角色" @change="handleRoleChange(row)" size="small">
                 <el-option label="管理员" value="ADMIN" />
-                <el-option label="普通用户" value="USER" />
-                <el-option label="访客" value="GUEST" />
+                <el-option label="高级会员" value="PREMIUM" />
+                <el-option label="普通会员" value="USER" />
               </el-select>
             </template>
           </el-table-column>
@@ -91,12 +91,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '../api'
 import { ElMessage } from 'element-plus'
 import { User, ChatLineRound, Document } from '@element-plus/icons-vue'
 
-const router = useRouter()
 const activeTab = ref('statistics')
 const statistics = ref<any>({})
 const users = ref<any[]>([])

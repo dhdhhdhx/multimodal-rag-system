@@ -15,7 +15,7 @@ spring:
     type: none
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3307/knowledge_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://127.0.0.1:3307/knowledge_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci}
     username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -59,10 +59,20 @@ spring:
           password: ${SPRING_AI_VECTORSTORE_PGVECTOR_DATASOURCE_PASSWORD:123456}
           driver-class-name: org.postgresql.Driver
 
-  #  data:
-  #    redis:
-  #      host: localhost
-  #      port: 6379
+  # Redis configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
   servlet:
     multipart:
@@ -73,7 +83,7 @@ spring:
 multimodal:
   python-service:
     base-url: ${MULTIMODAL_PYTHON_SERVICE_BASE_URL:http://localhost:8000}
-    timeout: 300000  # 5 minutes for large video processing
+    timeout: 900000  # 15 minutes for first-time model loading / large media processing
 
 # Alibaba Cloud OSS Configuration
 aliyun:

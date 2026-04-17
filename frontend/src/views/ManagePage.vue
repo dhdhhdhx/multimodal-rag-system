@@ -74,6 +74,63 @@
             <span class="stat-value stat-value--yellow">{{ processingCount }}</span>
           </div>
         </div>
+
+        <!-- Topic Management (PREMIUM/ADMIN only) -->
+        <div v-if="canCreateTopic" class="topic-card">
+          <div class="topic-header">
+            <h3 class="card-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              我的话题
+            </h3>
+            <el-button link size="small" @click="showCreateTopicDialog">新建</el-button>
+          </div>
+          <div v-if="topics.length" class="topic-list">
+            <div v-for="topic in topics" :key="topic.id"
+                 class="topic-item"
+                 :class="{ 'topic-item--active': activeTopic === topic.id }">
+              <span class="topic-name" @click="goToTopic(topic.id)">
+                {{ topic.name }}
+                <span class="topic-count">({{ getTopicDocCount(topic.id) }})</span>
+              </span>
+              <div class="topic-actions">
+                <el-button link size="small" @click="editTopic(topic)">重命名</el-button>
+                <el-popconfirm title="确定删除此话题？" @confirm="deleteTopic(topic.id)">
+                  <template #reference>
+                    <el-button link type="danger" size="small">删除</el-button>
+                  </template>
+                </el-popconfirm>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-topics">
+            <p>暂无话题，创建一个来整理文档</p>
+          </div>
+        </div>
+
+        <!-- Public Topics Discovery -->
+        <div class="topic-card">
+          <div class="topic-header">
+            <h3 class="card-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/><path d="M22 12h-4"/><path d="M22 12l-4-4"/><path d="M16 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0"/><path d="M16 12v6"/><path d="M16 18h4"/></svg>
+              公开话题
+            </h3>
+            <el-button v-if="publicTopics.length" link size="small" @click="fetchPublicTopics">刷新</el-button>
+          </div>
+          <div v-if="publicTopics.length" class="topic-list">
+            <div v-for="topic in publicTopics" :key="'public-'+topic.id"
+                 class="topic-item"
+                 :class="{ 'topic-item--active': activeTopic === topic.id }">
+              <span class="topic-name" @click="goToTopic(topic.id)">
+                {{ topic.name }}
+                <span class="topic-count">({{ topic.documentCount || 0 }})</span>
+              </span>
+              <span class="topic-creator">by {{ getTopicCreator(topic) }}</span>
+            </div>
+          </div>
+          <div v-else class="empty-topics">
+            <p>暂无公开话题</p>
+          </div>
+        </div>
       </aside>
 
       <!-- ===== Right Main Content (independent scroll) ===== -->
@@ -118,6 +175,19 @@
               <div class="doc-actions">
                 <el-button link type="primary" size="small" @click="previewDoc(doc)">查看</el-button>
                 <el-button link size="small" @click="editDocTags(doc)">编辑标签</el-button>
+                <el-dropdown v-if="topics.length" trigger="click" @command="(cmd: any) => handleTopicCommand(cmd, doc)">
+                  <el-button link size="small">
+                    添加到话题
+                    <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item v-for="topic in topics" :key="topic.id" :command="topic.id">
+                        {{ topic.name }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
                 <el-button link size="small" @click="togglePublic(doc)">
                   {{ isDocPublic(doc) ? '取消公开' : '设为公开' }}
                 </el-button>
@@ -149,6 +219,22 @@
       </template>
     </el-dialog>
 
+    <!-- Topic Management Dialog -->
+    <el-dialog v-model="topicDialogVisible" :title="editingTopic ? '编辑话题' : '创建话题'" width="500px">
+      <el-form label-width="80px">
+        <el-form-item label="话题名称">
+          <el-input v-model="topicForm.name" placeholder="请输入话题名称" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="topicForm.description" type="textarea" :rows="3" placeholder="请输入话题描述（可选）" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="topicDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveTopic">{{ editingTopic ? '保存' : '创建' }}</el-button>
+      </template>
+    </el-dialog>
+
     <!-- Preview Dialog -->
     <el-dialog v-model="previewVisible" :title="previewDoc_.fileName" width="700px" top="5vh">
       <div class="preview-content" v-html="renderMd(previewDoc_.extractedContent || '暂无内容')"></div>
@@ -162,10 +248,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import api, { getAccessToken } from '../api'
+import { getCurrentUser, isPremium } from '../utils/auth'
 import PageHeader from '../components/PageHeader.vue'
+
+const router = useRouter()
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderMd = (s: string) => s ? md.render(s) : '<p>暂无内容</p>'
@@ -178,13 +269,16 @@ const filePreviews = ref<any[]>([])
 const uploading = ref(false)
 const uploadRef = ref()
 const activeTag = ref('')
+const activeTopic = ref<number | null>(null)
 const currentPage = ref(0)
 
-// --- Responsive page size based on viewport height ---
-const DOC_ROW_HEIGHT = 48   // approximate height of one doc-row (padding + content + border)
-const HEADER_HEIGHT = 160    // doc-list-card header + filter bar + card padding
-const PAGINATION_HEIGHT = 60 // pagination bar
+// Topic states
+const topics = ref<any[]>([])
+const publicTopics = ref<any[]>([])
+const topicDocuments = ref<Map<number, number>>(new Map())
+const canCreateTopic = ref(false)
 
+// --- Responsive page size based on viewport height ---
 const calcPageSize = (): number => {
   const h = window.innerHeight
   if (h >= 900) return 12
@@ -245,14 +339,32 @@ const tagCounts = computed(() => {
 
 // Filtered list WITHOUT pagination (for counts)
 const filteredList = computed(() => {
-  if (!activeTag.value) return allDocuments.value
-  return allDocuments.value.filter(d => {
-    if (!d.tags) return false
-    return d.tags.split(',').map(s => s.trim()).includes(activeTag.value)
-  })
+  let result = allDocuments.value
+
+  // Filter by topic
+  if (activeTopic.value !== null) {
+    const docIds = getDocumentsByTopic(activeTopic.value)
+    result = result.filter(d => docIds.includes(d.id))
+  }
+
+  // Filter by tag
+  if (activeTag.value) {
+    result = result.filter(d => {
+      if (!d.tags) return false
+      return d.tags.split(',').map((s: string) => s.trim()).includes(activeTag.value)
+    })
+  }
+
+  return result
 })
 
 const filteredTotal = computed(() => filteredList.value.length)
+
+// Check if user can create topics (PREMIUM or ADMIN)
+const checkCanCreateTopic = () => {
+  const user = getCurrentUser()
+  canCreateTopic.value = isPremium() || (user?.roles?.includes('ADMIN') ?? false)
+}
 
 // Total pages based on current filter + page size
 const totalPages = computed(() => Math.ceil(filteredTotal.value / pageSize.value) || 1)
@@ -394,125 +506,175 @@ const previewDoc = (doc: any) => {
 }
 
 /**
- * View original file — simplest, most reliable approach.
- *
- * 1. Ask backend for a fresh presigned URL (redirect: 'manual' to capture 302).
- * 2. In the same click context, open the URL via <a> element.
- * 3. If the file has no real file (text/plain fallback), show in a new tab.
- * 4. If window.open is blocked, offer a copy-link button.
+ * 在新标签页中预览原始文件
+ * 支持图片、PDF、视频、音频和文本文件的在线预览
+ * Office 文件将直接下载
  */
 const viewOriginal = async (doc: any) => {
-  const id = doc.id
-  const fileName = doc.fileName || '文件'
   const token = getAccessToken()
   if (!token) {
     ElMessage.error('请先登录')
     return
   }
 
+  // HTML 转义辅助函数
+  const escapeHtml = (str: string) => {
+    const div = document.createElement('div')
+    div.textContent = str
+    return div.innerHTML
+  }
+
   try {
-    // Try redirect mode first (OSS presigned URL)
-    // Use 'manual' redirect to capture 302 responses and Location headers
-    let res
-    try {
-      res = await fetch(`/api/knowledge/view/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        redirect: 'manual'
-      })
-    } catch (fetchErr) {
-      // Network error or CORS issue with manual redirect
-      console.warn('Redirect mode failed, falling back to proxy mode:', fetchErr)
-      // Fall back to proxy mode which avoids CORS issues
-      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-    }
+    // 通过代理获取文件内容
+    const res = await fetch(`/api/knowledge/view/${doc.id}?proxy=true`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
 
-    // Handle 302/301/307 redirect responses from manual redirect mode
-    if (res.status === 302 || res.status === 301 || res.status === 307) {
-      const location = res.headers.get('Location')
-      if (location) {
-        openFileLink(location, fileName)
-        return
+    if (!res.ok) {
+      if (res.status === 401) {
+        ElMessage.error('请先登录')
+      } else if (res.status === 403) {
+        ElMessage.error('无权查看此文件')
+      } else if (res.status === 404) {
+        ElMessage.error('文件不存在，可能已被删除')
+      } else {
+        ElMessage.error('文件加载失败')
       }
-      // If no Location header, fall through to proxy mode
-      console.warn('Redirect response without Location header, falling back to proxy mode')
-      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-    }
-
-    // Handle opaque responses (status 0) from CORS errors
-    if (res.status === 0) {
-      console.warn('Opaque response detected, falling back to proxy mode')
-      res = await fetch(`/api/knowledge/view/${id}?proxy=true`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-    }
-
-    // 200 OK — check content type
-    if (res.ok) {
-      const contentType = res.headers.get('Content-Type') || ''
-
-      // text/plain fallback: backend returned extracted content instead of a real file
-      if (contentType.includes('text/plain')) {
-        const text = await res.text()
-        if (text.length < 200) {
-          ElMessage.warning('该文档没有原始文件，仅支持在线预览')
-          return
-        }
-        const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#1e293b;background:#f8fafc;}</style></head>
-<body>${escaped}</body></html>`
-        const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-        openFileLink(blobUrl, fileName)
-        return
-      }
-
-      // Real binary file (local file or proxied OSS file) — use blob URL
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      openFileLink(blobUrl, fileName)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
       return
     }
 
-    // Non-ok status
-    if (res.status === 403) {
-      ElMessage.error('无权查看此文件')
-    } else if (res.status === 404) {
-      ElMessage.error('文件不存在，可能已被删除')
-    } else {
-      ElMessage.error(`无法查看文件 (${res.status})`)
+    const contentType = res.headers.get('Content-Type') || ''
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+
+    // 根据文件类型生成预览
+    const fileType = doc.fileType?.toLowerCase() || ''
+
+    // Office 文件和 PDF - 直接触发下载
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType) ||
+        contentType.includes('wordprocessingml') ||
+        contentType.includes('spreadsheetml') ||
+        contentType.includes('presentationml')) {
+      // 创建下载链接并触发下载
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = doc.fileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+      ElMessage.success('文件下载中...')
+      return
     }
-  } catch (err) {
-    console.error('viewOriginal error:', err)
-    ElMessage.error('请求失败，请检查网络后重试')
+
+    // 创建预览页面 HTML
+    let html = ''
+
+    // 图片文件预览
+    if (contentType.startsWith('image/') || ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].includes(fileType)) {
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(doc.fileName)}</title>
+  <style>
+    body { margin: 0; background: #1e1e1e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    h1 { font-size: 1rem; color: #e0e0e0; margin: 10px 0; padding: 0 20px; text-align: center; word-break: break-all; }
+    img { max-width: 95vw; max-height: 85vh; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(doc.fileName)}</h1>
+  <img src="${blobUrl}" alt="${escapeHtml(doc.fileName)}">
+</body>
+</html>`
+    }
+    // 视频文件预览
+    else if (contentType.startsWith('video/') || ['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(fileType)) {
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(doc.fileName)}</title>
+  <style>
+    body { margin: 0; background: #000; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    h1 { font-size: 1rem; color: #fff; margin: 10px 0; padding: 0 20px; text-align: center; word-break: break-all; }
+    video { max-width: 100%; max-height: 80vh; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(doc.fileName)}</h1>
+  <video controls autoplay>
+    <source src="${blobUrl}" type="${contentType}">
+    您的浏览器不支持视频播放
+  </video>
+</body>
+</html>`
+    }
+    // 音频文件预览
+    else if (contentType.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(fileType)) {
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(doc.fileName)}</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .container { text-align: center; max-width: 600px; padding: 20px; }
+    h1 { font-size: 1.2rem; margin-bottom: 20px; word-break: break-all; color: #e0e0e0; }
+    audio { width: 100%; max-width: 500px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>${escapeHtml(doc.fileName)}</h1>
+    <audio controls autoplay>
+      <source src="${blobUrl}" type="${contentType}">
+      您的浏览器不支持音频播放
+    </audio>
+  </div>
+</body>
+</html>`
+    }
+    // 文本文件预览
+    else {
+      // 使用 FileReader 显式指定 UTF-8 编码读取文本
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('文件读取失败'))
+        reader.readAsText(blob, 'UTF-8')
+      })
+
+      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(doc.fileName)}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; background: #fff; color: #1e293b; }
+  </style>
+</head>
+<body>${escaped}</body>
+</html>`
+    }
+
+    // 创建预览页面并打开
+    const htmlBlob = new Blob([html], { type: 'text/html' })
+    const htmlUrl = URL.createObjectURL(htmlBlob)
+    window.open(htmlUrl, '_blank')
+
+    // 清理 blob URL
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl)
+      URL.revokeObjectURL(htmlUrl)
+    }, 120000)
+
+  } catch (e: any) {
+    console.error('viewOriginal error:', e)
+    ElMessage.error('预览失败: ' + (e.message || '未知错误'))
   }
-}
-
-/**
- * Open a file URL using an invisible <a> element.
- * This must be called from a user-initiated synchronous context (click handler)
- * to avoid popup blockers.
- */
-const openFileLink = (url: string, fileName: string) => {
-  const a = document.createElement('a')
-  a.href = url
-  a.target = '_blank'
-  a.rel = 'noopener noreferrer'
-  a.style.display = 'none'
-
-  // For blob URLs, use download attribute to force download
-  // For external URLs (OSS presigned URLs), let browser decide
-  if (url.startsWith('blob:')) {
-    a.download = fileName
-  }
-
-  document.body.appendChild(a)
-  a.click()
-  setTimeout(() => document.body.removeChild(a), 100)
 }
 
 // --- Edit Tags Dialog ---
@@ -538,12 +700,186 @@ const saveDocTags = async () => {
   }
 }
 
+// --- Topic Management ---
+const topicDialogVisible = ref(false)
+const editingTopic = ref<any>(null)
+const topicForm = ref({ name: '', description: '', parentId: null })
+
+// 获取话题列表
+const fetchTopics = async () => {
+  try {
+    const res = await api.get('/topics')
+    topics.value = res.data || []
+  } catch (e) {
+    console.error('获取话题列表失败:', e)
+  }
+}
+
+// 获取公开话题列表
+const fetchPublicTopics = async () => {
+  try {
+    const res = await api.get('/topics/public')
+    publicTopics.value = res.data || []
+    // 为每个公开话题获取文档数量
+    for (const topic of publicTopics.value) {
+      await fetchTopicDocuments(topic.id)
+    }
+  } catch (e) {
+    console.error('获取公开话题失败:', e)
+  }
+}
+
+// 获取话题创建者名称
+const getTopicCreator = (topic: any): string => {
+  if (topic.ownerId) {
+    const user = getCurrentUser()
+    if (user && user.id === topic.ownerId) {
+      return '我'
+    }
+    // 这里可以扩展为获取其他用户名，暂时显示用户ID
+    return `用户${topic.ownerId}`
+  }
+  return '未知'
+}
+
+// 获取话题下的文档ID列表
+const getDocumentsByTopic = (topicId: number): number[] => {
+  const docs = topicDocuments.value.get(topicId)
+  return docs ? Array.from(docs) : []
+}
+
+// 获取话题的文档数量
+const getTopicDocCount = (topicId: number): number => {
+  const docs = topicDocuments.value.get(topicId)
+  return docs ? docs.size : 0
+}
+
+// 显示创建话题对话框
+const showCreateTopicDialog = () => {
+  editingTopic.value = null
+  topicForm.value = { name: '', description: '', parentId: null }
+  topicDialogVisible.value = true
+}
+
+// 编辑话题
+const editTopic = (topic: any) => {
+  editingTopic.value = topic
+  topicForm.value = {
+    name: topic.name,
+    description: topic.description || '',
+    parentId: topic.parentId
+  }
+  topicDialogVisible.value = true
+}
+
+// 保存话题
+const saveTopic = async () => {
+  if (!topicForm.value.name.trim()) {
+    ElMessage.warning('请输入话题名称')
+    return
+  }
+
+  try {
+    if (editingTopic.value) {
+      // 更新话题
+      await api.put(`/topics/${editingTopic.value.id}`, topicForm.value)
+      ElMessage.success('话题已更新')
+    } else {
+      // 创建新话题
+      await api.post('/topics', topicForm.value)
+      ElMessage.success('话题已创建')
+    }
+    topicDialogVisible.value = false
+    // 刷新话题列表并返回
+    const res = await api.get('/topics')
+    topics.value = res.data || []
+    // 刷新所有话题的文档数量
+    await Promise.all(topics.value.map((t: any) => fetchTopicDocuments(t.id)))
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '操作失败')
+  }
+}
+
+// 删除话题
+const deleteTopic = async (topicId: number) => {
+  try {
+    await api.delete(`/topics/${topicId}`)
+    ElMessage.success('话题已删除')
+    if (activeTopic.value === topicId) {
+      activeTopic.value = null
+    }
+    await fetchTopics()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '删除失败')
+  }
+}
+
+// 跳转到话题详情页
+const goToTopic = (topicId: number) => {
+  router.push(`/topic/${topicId}`)
+}
+
+// 按话题筛选
+const filterByTopic = (topicId: number) => {
+  if (activeTopic.value === topicId) {
+    activeTopic.value = null // 取消筛选
+  } else {
+    activeTopic.value = topicId
+  }
+  activeTag.value = '' // 清除标签筛选
+  currentPage.value = 0
+}
+
+// 添加文档到话题
+const addDocToTopic = async (docId: number, topicId: number) => {
+  try {
+    await api.post(`/topics/${topicId}/documents/${docId}`)
+    ElMessage.success('已添加到话题')
+    await fetchTopicDocuments(topicId)
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '添加失败')
+  }
+}
+
+// 从话题移除文档
+const removeDocFromTopic = async (docId: number, topicId: number) => {
+  try {
+    await api.delete(`/topics/${topicId}/documents/${docId}`)
+    ElMessage.success('已从话题移除')
+    await fetchTopicDocuments(topicId)
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '移除失败')
+  }
+}
+
+// 获取话题下的文档
+const fetchTopicDocuments = async (topicId: number) => {
+  try {
+    const res = await api.get(`/topics/${topicId}/documents`)
+    const docIds = new Set(res.data.map((d: any) => d.id))
+    topicDocuments.value.set(topicId, docIds)
+  } catch (e) {
+    console.error('获取话题文档失败:', e)
+  }
+}
+
+// 处理话题下拉菜单命令
+const handleTopicCommand = async (topicId: number, doc: any) => {
+  await addDocToTopic(doc.id, topicId)
+}
+
 // --- Watch filter reset pagination ---
 watch(activeTag, () => { currentPage.value = 0 })
+watch(activeTopic, () => { currentPage.value = 0 })
 
-onMounted(() => {
-  fetchDocuments()
+onMounted(async () => {
+  await fetchDocuments()
   window.addEventListener('resize', onResize)
+  checkCanCreateTopic()
+  await fetchTopics()
+  await fetchPublicTopics()
+  // 初始化所有话题的文档数量
+  await Promise.all(topics.value.map((t: any) => fetchTopicDocuments(t.id)))
 })
 
 onBeforeUnmount(() => {
@@ -724,6 +1060,79 @@ onBeforeUnmount(() => {
 .stat-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .stat-value--green { color: var(--accent); }
 .stat-value--yellow { color: #d97706; }
+
+/* ===== Topic Card ===== */
+.topic-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+}
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.topic-header .card-section-title {
+  margin: 0;
+}
+.topic-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.topic-item:hover {
+  background: var(--bg-secondary);
+}
+.topic-item--active {
+  background: var(--accent-light);
+}
+.topic-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.topic-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.topic-creator {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+  padding-left: 8px;
+}
+.topic-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.topic-item:hover .topic-actions {
+  opacity: 1;
+}
+.empty-topics {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 12px 0;
+}
+.empty-topics p {
+  margin: 0;
+}
 
 /* ===== Doc List Card ===== */
 .doc-list-card {

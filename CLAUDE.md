@@ -2,184 +2,229 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Overview
+## Project Overview
 
-This is a **multimodal RAG (Retrieval-Augmented Generation) knowledge management system** that supports text, images, audio, and video documents. It uses vector embeddings for semantic search and AI-powered question answering.
+This is a **Multimodal RAG (Retrieval-Augmented Generation) Knowledge Management System** that enables users to upload, search, and chat with documents across multiple modalities (text, images, audio, video). The system uses vector embeddings and LLM-based question answering.
 
-**Architecture:**
-- **Frontend**: Vue.js 3 + TypeScript (Vite, Element Plus UI)
-- **Backend**: Java 17 + Spring Boot 3.4.1 + Spring AI 1.0.0-M4
-- **Vector DB**: PostgreSQL with pgvector extension (1024-dim embeddings)
-- **Metadata DB**: MySQL 8.0
-- **AI Service**: Python FastAPI service for multimodal embeddings (CLIP, Whisper, Transformers)
-- **Authentication**: JWT with Spring Security
-- **Storage**: Alibaba Cloud OSS (optional) or local `uploads/` directory
+### Architecture
+
+The system is composed of four main services:
+
+1. **Java Backend** (Spring Boot 3.4.1, Java 17)
+   - REST API serving at port 8080
+   - Handles business logic, authentication, document management, topic system
+   - Integrates with MySQL for metadata and PostgreSQL+PgVector for vector storage
+   - Uses Spring AI for LLM integration (OpenAI-compatible API)
+   - Uses Redis for view count buffering and caching
+
+2. **Python AI Service** (FastAPI)
+   - Serves at port 8000
+   - Provides multimodal embedding capabilities:
+     - Text: sentence-transformers (all-MiniLM-L6-v2, 384-dim)
+     - Images: CLIP (vit-base-patch32, 512-dim)
+     - Audio: Whisper (base) transcription + text embedding
+     - Video: keyframe extraction + CLIP
+   - Lazy-loads models on first request to avoid startup delays
+
+3. **Vue Frontend** (Vue 3 + TypeScript + Element Plus)
+   - Serves at port 5174 (Docker) or 8888 (dev)
+   - Vite dev server proxies `/api` to backend at 8080
+
+4. **Databases**
+   - MySQL (port 3308): User data, document metadata, topics, annotations, chat sessions
+   - PostgreSQL+PgVector (port 15432): Vector embeddings for semantic search
+   - Redis (port 6379): View count buffering, session cache
+
+### Service Communication
+
+The Java backend calls the Python service via `PythonEmbeddingClient` (backend/src/main/java/com/multimodal/rag/client/PythonEmbeddingClient.java) to:
+- Generate embeddings for uploaded files
+- Transcribe audio content
 
 ## Development Commands
 
-### Frontend (Vue.js)
+### Start Full Stack (Docker)
+
 ```bash
-cd frontend
-npm install
-npm run dev          # Dev server on 127.0.0.1:8888 (proxies /api to backend:8080)
-npm run build        # Production build (TypeScript check + Vite build)
-npm run preview      # Preview production build
+# From project root
+docker-compose up --build
 ```
 
-### Backend (Spring Boot)
+This starts all services at:
+- Backend: http://localhost:8082
+- Frontend: http://localhost:5174
+- Python Service: http://localhost:8000
+
+### Individual Services
+
+**Backend (Java/Spring Boot)**
 ```bash
 cd backend
-mvn clean install    # Build project
-mvn spring-boot:run  # Run development server on port 8080
-mvn package          # Create executable JAR
-java -jar target/*.jar  # Run JAR
+mvn clean package -DskipTests
+java -jar target/*.jar
+# Runs on http://localhost:8080
 ```
 
-### Python AI Service
+**Python AI Service**
 ```bash
 cd python-services
 python -m venv venv
-venv\Scripts\activate      # Windows
-source venv/bin/activate   # Linux/Mac
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Docker (All Services)
+**Frontend (Vue)**
 ```bash
-docker-compose up -d      # Start all services
-docker-compose down       # Stop all services
+cd frontend
+npm install
+npm run dev     # Serves on http://localhost:8888
+npm run build   # Production build
 ```
 
-### Testing & Data Generation
+### Databases
+
+**MySQL**
 ```bash
-# Generate test data
-cd scripts
-python generate_test_data.py
-
-# JMeter load testing
-jmeter -n -t scripts/load_test.jmx -l results/test_results.jtl -e -o results/html_report
+# Via Docker Compose (port 3308)
+docker exec -it multimodal-mysql mysql -uroot -p
+# Database: knowledge_management
 ```
 
-## Architecture & Data Flow
-
-### Document Upload Pipeline
-1. **Upload**: User uploads file via frontend → saved to `uploads/` or OSS
-2. **Modality Detection**: File extension determines type (TEXT/IMAGE/AUDIO/VIDEO)
-3. **Content Processing**:
-   - **TEXT**: Apache Tika parsing → chunking (800 chars, 150 overlap) → embedding
-   - **IMAGE**: CLIP embedding (512-dim → aligned to 384-dim) + tags
-   - **AUDIO**: Whisper transcription → text chunking → embedding
-   - **VIDEO**: Keyframe extraction → CLIP embedding → tags
-4. **Vector Storage**: Embeddings stored in PGVector with metadata
-5. **Metadata**: Document info stored in MySQL
-
-### RAG Query Pipeline
-1. **User Query**: Submitted via chat interface
-2. **Vector Search**: Searches user's private docs (top 5) + public docs (top 3)
-3. **Context Assembly**: Merges results, builds context (max 6000 chars)
-4. **LLM Generation**: Sends query + context to LLM (Qwen/compatible)
-5. **Response**: Returns answer with source citations
-
-### Key Services
-
-**RagService** (`backend/src/main/java/com/multimodal/rag/service/RagService.java`):
-- Main RAG orchestration
-- Searches user documents + public documents
-- Builds context with max length limit
-- Returns answer with source tracking
-
-**KnowledgeService** (`backend/src/main/java/com/multimodal/rag/service/KnowledgeService.java`):
-- Document upload and processing
-- Modality detection and routing
-- Integration with Python service for non-text files
-
-**VectorStoreService** (`backend/src/main/java/com/multimodal/rag/service/VectorStoreService.java`):
-- Wraps Spring AI PGVectorStore
-- User-scoped search via metadata filters
-- Retry logic for transient embedding API errors
-
-**MultimodalEmbeddingService** (`backend/src/main/java/com/multimodal/rag/service/MultimodalEmbeddingService.java`):
-- File type detection
-- Routes to appropriate embedding method
-
-## Configuration
-
-### Required Environment Variables
-- `OPENAI_API_KEY` - For LLM and text embeddings (Alibaba Dashscope/Qwen)
-- `JWT_SECRET` - For token signing (min 256 bits)
-
-### Optional Environment Variables
-- `SPRING_DATASOURCE_URL` - MySQL connection (default: `jdbc:mysql://127.0.0.1:3307/knowledge_management`)
-- `SPRING_AI_VECTORSTORE_PGVECTOR_DATASOURCE_URL` - PGVector connection (default: `jdbc:postgresql://127.0.0.1:5432/vector_db`)
-- `MULTIMODAL_PYTHON_SERVICE_BASE_URL` - Python service URL (default: `http://localhost:8000`)
-- `ALIYUN_OSS_*` - For cloud storage (otherwise uses local `uploads/`)
-
-### Application Structure
-```
-backend/
-├── src/main/java/com/multimodal/rag/
-│   ├── controller/          # REST endpoints
-│   ├── service/             # Business logic
-│   ├── repository/          # JPA repositories
-│   ├── model/               # JPA entities
-│   ├── config/              # Spring configuration
-│   ├── security/            # JWT + Security
-│   └── client/              # External API clients
-├── src/main/resources/
-│   └── application.yml      # Main configuration
-
-frontend/
-├── src/
-│   ├── views/               # Vue components (public/, user/, admin/)
-│   ├── api.ts               # Axios client with /api proxy
-│   ├── router.ts            # Vue Router config
-│   └── main.ts              # App entry point
-└── vite.config.ts           # Dev server config (port 8888)
-
-python-services/
-├── main.py                  # FastAPI app
-├── models/                  # Model handlers (text, image, audio, video)
-├── utils/                   # Vector alignment, utilities
-└── requirements.txt         # Python dependencies
+**PostgreSQL+PgVector**
+```bash
+# Via Docker Compose (port 15432)
+docker exec -it multimodal-pgvector psql -U user -d vector_db
 ```
 
-## Authentication & Authorization
+## Key Configuration Files
 
-- **JWT**: Access tokens (1 hour) + Refresh tokens (7 days)
-- **Roles**: USER, ADMIN
-- **Public Endpoints**: `/api/auth/**`, `/api/knowledge/public/**`
-- **Protected Endpoints**: All other `/api/*` require authentication
-- **Admin Endpoints**: `/api/admin/**` require ADMIN role
+- `docker-compose.yml`: Orchestrates all services
+- `backend/src/main/resources/application.yml`: Backend configuration (databases, API keys, timeouts)
+- `backend/pom.xml`: Maven dependencies
+- `frontend/vite.config.ts`: Vite dev server with API proxy to port 8080
+- `python-services/requirements.txt`: Python dependencies
 
-## Important Constraints
+## Environment Variables (Important)
 
-### Spring AI Version Limitation
-Spring AI 1.0.0-M4 does not support custom embeddings directly. The `addDocumentWithEmbedding()` method in `VectorStoreService` accepts embeddings but currently uses Spring AI's default embedding service. Future upgrade needed for full multimodal embedding support.
+The backend requires these environment variables (set in `application.yml` or via shell):
 
-### Vector Search Filtering
-PGVector metadata filtering uses string comparison for userId values due to Spring AI M4's filter DSL behavior. Filter expression: `"userId == '" + userId + "'"`
+- `SPRING_DATASOURCE_URL`: MySQL connection string
+- `SPRING_AI_VECTORSTORE_PGVECTOR_DATASOURCE_URL`: PostgreSQL connection string
+- `MULTIMODAL_PYTHON_SERVICE_BASE_URL`: Python service URL (default: http://localhost:8000)
+- `OPENAI_API_KEY`: For LLM chat (can use Alibaba DashScope via base-url override)
+- `ALIYUN_OSS_*`: For cloud storage (optional)
+- `SPRING_DATA_REDIS_*`: Redis connection (used by ViewCountBufferService)
+
+## Critical Architecture Details
+
+### RAG Flow
+
+1. User uploads document → Backend extracts content via Apache Tika
+2. Backend calls Python service for multimodal embedding
+3. Embedding stored in PgVector for semantic search
+4. Metadata stored in MySQL
+5. User queries → Backend retrieves similar documents via vector + keyword search
+6. Context + query sent to LLM → Response returned with sources
+
+### Search Strategy (RagService.java)
+
+The system uses **hybrid search** combining:
+- Vector similarity search (PgVector)
+- Keyword search (MySQL LIKE queries)
+- Results merged and deduplicated
+- Premium users get more results (8 vs 5)
+
+### Topic System
+
+Topic feature with hierarchical structure, subscription, and recommendation:
+
+**Backend models:**
+- `Topic` — topics with name, description, parentId (1-level hierarchy), ownerId, isPublic
+- `TopicDocument` — many-to-many association between topics and documents
+- `TopicSubscription` — user subscriptions to public topics
+
+**Backend APIs** (`/api/topics`):
+- CRUD: POST, GET, PUT, DELETE
+- Document association: POST/DELETE `/{id}/documents/{docId}`, GET `/{id}/documents/paged`
+- Subscription: POST/DELETE `/{id}/subscribe`, GET `/{id}/subscription-status`
+- Discovery: GET `/hot`, `/recommended`, `/public/paged`, `/subscribed`
+- Tree structure: GET `/tree`
+
+**Frontend pages:**
+- `/topics` — TopicsPage.vue (public topic discovery with search)
+- `/topic/:id` — TopicDetailPage.vue (topic detail + subscribe + document list)
+- `/manage` — topic sidebar in ManagePage.vue (CRUD for own topics)
+- `/admin/topics` — AdminTopics.vue (admin management)
+
+**Recommendation algorithm** (TopicService.java):
+- Collects user's document tags as interest profile
+- Matches interest tags against public topic names/descriptions
+- Falls back to hot topics if no user tags found
+- Ranks by: relevance score → subscriber count
+
+### View Count Buffering (ViewCountBufferService.java)
+
+Uses Redis INCR to buffer view increments, flushes to MySQL every 60 seconds via @Scheduled task. Falls back to direct MySQL write if Redis is unavailable.
+
+### Authentication
+
+- JWT-based authentication via `JwtTokenProvider`
+- Default secret: `multimodal-rag-secret-key-change-in-production-min-256-bits`
+- Roles: USER, PREMIUM, ADMIN
+- PREMIUM/ADMIN can create topics
+
+### File Preview
+
+- PDF and Office files trigger download (Content-Disposition: attachment)
+- Images, audio, video open in a new tab with HTML wrapper
+- File preview uses streaming (HttpServletResponse) for performance
+- Chinese filename encoding uses RFC 5987 format
+
+### Python Model Caching
+
+Models are cached in `python-services/.model-cache/huggingface` to avoid re-downloading.
+Uses `HF_ENDPOINT=https://hf-mirror.com` for Chinese network environments.
 
 ### File Upload Limits
-- Max file size: 200MB (configured in `application.yml`)
-- Chunking: 800 characters with 150 char overlap for text documents
-- Vector dimensions: 1024 (configurable)
 
-## Database Schema
+Max file size: 200MB (configured in `application.yml`)
 
-**MySQL Tables:**
-- `user` - User accounts with roles
-- `multimodal_document` - File metadata and content
-- `chat_session` / `chat_message` - Conversation history
-- `document_access_log` - Usage analytics
-- `query_log` - Query statistics
+### JPA Entity Serialization
 
-**PostgreSQL (PGVector):**
-- `vector_store` - Embeddings with metadata (JSONB)
+When returning entities from API, prefer converting to `Map<String, Object>` instead of returning JPA entities directly. This avoids `ByteBuddyInterceptor` serialization errors from lazy-loaded relationships. See TopicController.getDocumentsByTopic() for the pattern.
 
-## Supported File Types
+## Directory Structure
 
-- **Text**: PDF, DOC, DOCX, TXT, MD, RTF
-- **Images**: JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF
-- **Audio**: MP3, WAV, M4A, FLAC, OGG, AAC
-- **Video**: MP4, AVI, MOV, WMV, FLV, MKV, WEBM
+```
+multimodal-rag-system/
+├── backend/                    # Java Spring Boot backend
+│   ├── src/main/java/com/multimodal/rag/
+│   │   ├── client/            # PythonEmbeddingClient (calls Python service)
+│   │   ├── config/            # Spring configurations (Security, VectorStore, Redis)
+│   │   ├── controller/        # REST endpoints (Knowledge, Topic, Chat, Admin, etc.)
+│   │   ├── model/             # JPA entities (User, MultimodalDocument, Topic, TopicDocument, TopicSubscription)
+│   │   ├── repository/        # JPA repositories
+│   │   ├── security/          # JWT auth (JwtTokenProvider, JwtAuthenticationFilter)
+│   │   └── service/           # Business logic (RagService, TopicService, ViewCountBufferService, etc.)
+│   └── pom.xml
+├── python-services/            # FastAPI AI service
+│   ├── main.py                # FastAPI app with embedding endpoints
+│   ├── models/                # TextEmbedder, ImageEmbedder, AudioTranscriber, VideoProcessor
+│   ├── utils/                 # VectorAligner for dimension alignment
+│   └── requirements.txt
+├── frontend/                   # Vue 3 + TypeScript UI
+│   ├── src/
+│   │   ├── api.ts              # Axios instance + topicApi helpers
+│   │   ├── router.ts           # Route definitions
+│   │   ├── views/              # Pages (HomePage, TopicDetailPage, TopicsPage, ManagePage, etc.)
+│   │   ├── views/admin/        # Admin pages (AdminTopics, AdminUsers, AdminDocuments, etc.)
+│   │   ├── components/         # Shared components (ArticleCard, TopicCard, PageHeader)
+│   │   └── utils/              # Auth utilities
+│   ├── package.json
+│   └── vite.config.ts
+└── docker-compose.yml          # Full stack orchestration
+```

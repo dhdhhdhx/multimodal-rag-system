@@ -332,6 +332,13 @@ const viewSource = async (src: any) => {
     ElMessage.error('请先登录')
     return
   }
+
+  const escapeHtml = (str: string) => {
+    const div = document.createElement('div')
+    div.textContent = str
+    return div.innerHTML
+  }
+
   try {
     const res = await fetch(`/api/knowledge/view/${src.docId}?proxy=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -339,14 +346,26 @@ const viewSource = async (src: any) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const contentType = res.headers.get('Content-Type') || ''
     if (contentType.includes('text/plain')) {
-      const text = await res.text()
+      // 使用 Blob + FileReader 显式指定 UTF-8 编码读取文本
+      const blob = await res.blob()
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('文件读取失败'))
+        reader.readAsText(blob, 'UTF-8')
+      })
       if (text.length < 200) {
         ElMessage.warning('该文档没有原始文件')
         return
       }
-      const blobUrl = URL.createObjectURL(new Blob([text], { type: 'text/html' }))
-      window.open(blobUrl, '_blank')
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
+      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(src.fileName || '文档')}</title>
+<style>body{font-family:system-ui,-apple-system,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;background:#fff;color:#1e293b;}</style></head>
+<body>${escaped}</body></html>`
+      const previewBlob = new Blob([html], { type: 'text/html' })
+      const previewUrl = URL.createObjectURL(previewBlob)
+      window.open(previewUrl, '_blank')
+      setTimeout(() => URL.revokeObjectURL(previewUrl), 120000)
     } else {
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)

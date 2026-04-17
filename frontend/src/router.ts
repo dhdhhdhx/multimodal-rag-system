@@ -4,15 +4,18 @@ import Register from './views/Register.vue'
 import Layout from './views/Layout.vue'
 import HomePage from './views/HomePage.vue'
 import TagsPage from './views/TagsPage.vue'
+import TopicsPage from './views/TopicsPage.vue'
 import SearchPage from './views/SearchPage.vue'
 import AiChatPage from './views/AiChatPage.vue'
 import ManagePage from './views/ManagePage.vue'
 import ArticleDetail from './views/ArticleDetail.vue'
+import TopicDetailPage from './views/TopicDetailPage.vue'
 import AdminLayout from './views/admin/AdminLayout.vue'
 import AdminDashboard from './views/admin/AdminDashboard.vue'
 import AdminUsers from './views/admin/AdminUsers.vue'
 import AdminDocuments from './views/admin/AdminDocuments.vue'
 import AdminTags from './views/admin/AdminTags.vue'
+import AdminTopics from './views/admin/AdminTopics.vue'
 import AdminStats from './views/admin/AdminStats.vue'
 import { isAdmin } from './utils/auth'
 import { getAccessToken } from './api'
@@ -36,8 +39,10 @@ const routes = [
         children: [
             { path: '', name: 'Home', component: HomePage },
             { path: 'tags', name: 'Tags', component: TagsPage },
+            { path: 'topics', name: 'Topics', component: TopicsPage },
             { path: 'search', name: 'Search', component: SearchPage },
             { path: 'article/:id', name: 'ArticleDetail', component: ArticleDetail },
+            { path: 'topic/:id', name: 'TopicDetail', component: TopicDetailPage },
             { path: 'ai', name: 'AiChat', component: AiChatPage, meta: { requiresAuth: true } },
             { path: 'manage', name: 'Manage', component: ManagePage, meta: { requiresAuth: true } },
         ]
@@ -51,6 +56,7 @@ const routes = [
             { path: 'users', name: 'AdminUsers', component: AdminUsers },
             { path: 'documents', name: 'AdminDocuments', component: AdminDocuments },
             { path: 'tags', name: 'AdminTags', component: AdminTags },
+            { path: 'topics', name: 'AdminTopics', component: AdminTopics },
             { path: 'stats', name: 'AdminStats', component: AdminStats },
         ]
     }
