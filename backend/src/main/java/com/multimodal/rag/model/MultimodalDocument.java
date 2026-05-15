@@ -28,7 +28,7 @@ public class MultimodalDocument implements Serializable {
     private String filePath;
     private Long fileSize;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String extractedContent;
 
     private LocalDateTime uploadTime;

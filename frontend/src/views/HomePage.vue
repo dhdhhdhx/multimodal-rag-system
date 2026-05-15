@@ -2,32 +2,6 @@
   <div class="home-page">
     <PageHeader badge="知识库" title="最新文章" subtitle="探索知识节点，构建你的第二大脑"
       :rightValue="String(totalCount)" rightLabel="文章总数" />
-
-    <!-- Topic Discovery Section -->
-    <div class="topic-discovery">
-      <!-- Hot Topics -->
-      <div v-if="hotTopics.length > 0" class="discovery-section">
-        <div class="section-header">
-          <h3 class="section-title">🔥 热门话题</h3>
-          <router-link to="/topics" class="view-all">查看全部 &gt;</router-link>
-        </div>
-        <div class="topic-grid-sm">
-          <TopicCard v-for="t in hotTopics" :key="t.id" :topic="t" @click="goToTopic(t)" />
-        </div>
-      </div>
-
-      <!-- Recommended Topics (authenticated users) -->
-      <div v-if="isLoggedIn && recommendedTopics.length > 0" class="discovery-section">
-        <div class="section-header">
-          <h3 class="section-title">✨ 为你推荐</h3>
-        </div>
-        <div class="topic-grid-sm">
-          <TopicCard v-for="t in recommendedTopics" :key="t.id" :topic="t" @click="goToTopic(t)" />
-        </div>
-      </div>
-    </div>
-
-    <!-- Articles Section -->
     <div v-if="loading" class="skeleton-grid">
       <el-skeleton animated :count="9" :throttle="0">
         <template #template>
@@ -64,12 +38,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import api, { getAccessToken } from '../api'
+import api from '../api'
 import PageHeader from '../components/PageHeader.vue'
 import ArticleCard from '../components/ArticleCard.vue'
-import TopicCard from '../components/TopicCard.vue'
 
 const router = useRouter()
 const documents = ref<any[]>([])
@@ -78,12 +51,6 @@ const totalPages = ref(0)
 const currentPage = ref(0)
 const pageSize = 9
 const loading = ref(false)
-
-// Topic discovery data
-const hotTopics = ref<any[]>([])
-const recommendedTopics = ref<any[]>([])
-
-const isLoggedIn = computed(() => !!getAccessToken())
 
 const loadPage = async (page: number) => {
   loading.value = true
@@ -97,84 +64,14 @@ const loadPage = async (page: number) => {
   finally { loading.value = false }
 }
 
-const fetchHotTopics = async () => {
-  try {
-    const res = await api.get('/topics/hot', { params: { limit: 6 } })
-    hotTopics.value = res.data || []
-  } catch (e) {
-    console.error('获取热门话题失败:', e)
-  }
-}
-
-const fetchRecommendedTopics = async () => {
-  if (!isLoggedIn.value) return
-  try {
-    const res = await api.get('/topics/recommended', { params: { limit: 6 } })
-    recommendedTopics.value = res.data || []
-  } catch (e) {
-    console.error('获取推荐话题失败:', e)
-  }
-}
-
 const viewDoc = (doc: any) => {
   router.push(`/article/${doc.id}`)
 }
 
-const goToTopic = (topic: any) => {
-  router.push(`/topic/${topic.id}`)
-}
-
-onMounted(() => {
-  loadPage(0)
-  fetchHotTopics()
-  fetchRecommendedTopics()
-})
+onMounted(() => loadPage(0))
 </script>
 
 <style scoped>
-.topic-discovery {
-  margin-bottom: 32px;
-}
-
-.discovery-section {
-  margin-bottom: 24px;
-}
-
-.discovery-section:last-child {
-  margin-bottom: 0;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.view-all {
-  font-size: 14px;
-  color: var(--accent);
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.view-all:hover {
-  color: var(--accent-hover);
-}
-
-.topic-grid-sm {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 16px;
-}
-
 .skeleton-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -216,26 +113,12 @@ onMounted(() => {
   justify-content: center;
   margin-top: 40px;
 }
-
-@media (max-width: 1200px) {
-  .topic-grid-sm {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
 @media (max-width: 900px) {
   .article-grid { grid-template-columns: repeat(2, 1fr); }
   .skeleton-grid { grid-template-columns: repeat(2, 1fr); }
-  .topic-grid-sm {
-    grid-template-columns: repeat(3, 1fr);
-  }
 }
-
 @media (max-width: 600px) {
   .article-grid { grid-template-columns: 1fr; }
   .skeleton-grid { grid-template-columns: 1fr; }
-  .topic-grid-sm {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 </style>

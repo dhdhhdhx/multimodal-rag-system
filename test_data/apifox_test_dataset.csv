@@ -1,0 +1,16 @@
+name,type,file_path,query,description
+代码测试1,text,codes/code_001_python.py,Python快速排序实现,测试Python代码嵌入
+代码测试2,text,codes/code_003_java.java,Java二叉树遍历,测试Java代码嵌入
+代码测试3,text,codes/code_006_javascript.js,JavaScript数组去重,测试JavaScript代码嵌入
+代码测试4,text,codes/code_014_python.py,Python装饰器用法,测试Python高级特性
+代码测试5,text,codes/code_027_java.java,Java多线程同步,测试Java并发代码
+图片测试1,image,images/image_001.png,,测试图片嵌入1
+图片测试2,image,images/image_002.png,,测试图片嵌入2
+图片测试3,image,images/image_003.png,,测试图片嵌入3
+图片测试4,image,images/image_004.png,,测试图片嵌入4
+图片测试5,image,images/image_005.png,,测试图片嵌入5
+混合查询1,text,QuickBundles是一种用于快速追踪纤维的算法,纤维追踪算法,测试医学影像算法查询
+混合查询2,text,向量数据库使用余弦相似度计算文档相关性,相似度计算,测试向量检索概念
+混合查询3,text,Transformer架构的自注意力机制原理,注意力机制,测试深度学习概念
+混合查询4,text,PyTorch张量运算与NumPy数组的区别,张量运算,测试框架对比查询
+混合查询5,text,RAG检索增强生成系统的核心组件,RAG系统,测试架构查询

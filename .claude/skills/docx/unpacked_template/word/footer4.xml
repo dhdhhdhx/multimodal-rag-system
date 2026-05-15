@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<w:ftr xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpsCustomData="http://www.wps.cn/officeDocument/2013/wpsCustomData" mc:Ignorable="w14 w15 wp14">
+  <w:p w14:paraId="436C542D">
+    <w:pPr>
+      <w:pStyle w:val="14"/>
+      <w:ind w:firstLine="480"/>
+      <w:jc w:val="right"/>
+    </w:pPr>
+    <w:r>
+      <mc:AlternateContent>
+        <mc:Choice Requires="wps">
+          <w:drawing>
+            <wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="251659264" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">
+              <wp:simplePos x="0" y="0"/>
+              <wp:positionH relativeFrom="margin">
+                <wp:align>right</wp:align>
+              </wp:positionH>
+              <wp:positionV relativeFrom="paragraph">
+                <wp:posOffset>0</wp:posOffset>
+              </wp:positionV>
+              <wp:extent cx="1828800" cy="1828800"/>
+              <wp:effectExtent l="0" t="0" r="0" b="0"/>
+              <wp:wrapNone/>
+              <wp:docPr id="1" name="文本框 1"/>
+              <wp:cNvGraphicFramePr/>
+              <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                <a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">
+                  <wps:wsp>
+                    <wps:cNvSpPr txBox="1"/>
+                    <wps:spPr>
+                      <a:xfrm>
+                        <a:off x="0" y="0"/>
+                        <a:ext cx="1828800" cy="1828800"/>
+                      </a:xfrm>
+                      <a:prstGeom prst="rect">
+                        <a:avLst/>
+                      </a:prstGeom>
+                      <a:noFill/>
+                      <a:ln w="6350">
+                        <a:noFill/>
+                      </a:ln>
+                    </wps:spPr>
+                    <wps:style>
+                      <a:lnRef idx="0">
+                        <a:schemeClr val="accent1"/>
+                      </a:lnRef>
+                      <a:fillRef idx="0">
+                        <a:schemeClr val="accent1"/>
+                      </a:fillRef>
+                      <a:effectRef idx="0">
+                        <a:schemeClr val="accent1"/>
+                      </a:effectRef>
+                      <a:fontRef idx="minor">
+                        <a:schemeClr val="dk1"/>
+                      </a:fontRef>
+                    </wps:style>
+                    <wps:txbx>
+                      <w:txbxContent>
+                        <w:sdt>
+                          <w:sdtPr>
+                            <w:id w:val="-1936045891"/>
+                          </w:sdtPr>
+                          <w:sdtContent>
+                            <w:p w14:paraId="3050CA54">
+                              <w:pPr>
+                                <w:pStyle w:val="14"/>
+                                <w:ind w:firstLine="480"/>
+                                <w:jc w:val="right"/>
+                              </w:pPr>
+                              <w:r>
+                                <w:fldChar w:fldCharType="begin"/>
+                              </w:r>
+                              <w:r>
+                                <w:instrText xml:space="preserve">PAGE   \* MERGEFORMAT</w:instrText>
+                              </w:r>
+                              <w:r>
+                                <w:fldChar w:fldCharType="separate"/>
+                              </w:r>
+                              <w:r>
+                                <w:rPr>
+                                  <w:lang w:val="zh-CN"/>
+                                </w:rPr>
+                                <w:t>v</w:t>
+                              </w:r>
+                              <w:r>
+                                <w:fldChar w:fldCharType="end"/>
+                              </w:r>
+                            </w:p>
+                          </w:sdtContent>
+                        </w:sdt>
+                        <w:p w14:paraId="266ED880">
+                          <w:pPr>
+                            <w:ind w:firstLine="480"/>
+                          </w:pPr>
+                        </w:p>
+                      </w:txbxContent>
+                    </wps:txbx>
+                    <wps:bodyPr rot="0" spcFirstLastPara="0" vertOverflow="overflow" horzOverflow="overflow" vert="horz" wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" numCol="1" spcCol="0" rtlCol="0" fromWordArt="0" anchor="t" anchorCtr="0" forceAA="0" compatLnSpc="1">
+                      <a:spAutoFit/>
+                    </wps:bodyPr>
+                  </wps:wsp>
+                </a:graphicData>
+              </a:graphic>
+            </wp:anchor>
+          </w:drawing>
+        </mc:Choice>
+        <mc:Fallback>
+          <w:pict>
+            <v:shape id="_x0000_s1026" o:spid="_x0000_s1026" o:spt="202" type="#_x0000_t202" style="position:absolute;left:0pt;margin-top:0pt;height:144pt;width:144pt;mso-position-horizontal:right;mso-position-horizontal-relative:margin;mso-wrap-style:none;z-index:251659264;mso-width-relative:page;mso-height-relative:page;" filled="f" stroked="f" coordsize="21600,21600" o:gfxdata="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&#10;WQEAALsFAAAAAA==&#10;">
+              <v:fill on="f" focussize="0,0"/>
+              <v:stroke on="f" weight="0.5pt"/>
+              <v:imagedata o:title=""/>
+              <o:lock v:ext="edit" aspectratio="f"/>
+              <v:textbox inset="0mm,0mm,0mm,0mm" style="mso-fit-shape-to-text:t;">
+                <w:txbxContent>
+                  <w:sdt>
+                    <w:sdtPr>
+                      <w:id w:val="-1936045891"/>
+                    </w:sdtPr>
+                    <w:sdtContent>
+                      <w:p w14:paraId="3050CA54">
+                        <w:pPr>
+                          <w:pStyle w:val="14"/>
+                          <w:ind w:firstLine="480"/>
+                          <w:jc w:val="right"/>
+                        </w:pPr>
+                        <w:r>
+                          <w:fldChar w:fldCharType="begin"/>
+                        </w:r>
+                        <w:r>
+                          <w:instrText xml:space="preserve">PAGE   \* MERGEFORMAT</w:instrText>
+                        </w:r>
+                        <w:r>
+                          <w:fldChar w:fldCharType="separate"/>
+                        </w:r>
+                        <w:r>
+                          <w:rPr>
+                            <w:lang w:val="zh-CN"/>
+                          </w:rPr>
+                          <w:t>v</w:t>
+                        </w:r>
+                        <w:r>
+                          <w:fldChar w:fldCharType="end"/>
+                        </w:r>
+                      </w:p>
+                    </w:sdtContent>
+                  </w:sdt>
+                  <w:p w14:paraId="266ED880">
+                    <w:pPr>
+                      <w:ind w:firstLine="480"/>
+                    </w:pPr>
+                  </w:p>
+                </w:txbxContent>
+              </v:textbox>
+            </v:shape>
+          </w:pict>
+        </mc:Fallback>
+      </mc:AlternateContent>
+    </w:r>
+  </w:p>
+</w:ftr>

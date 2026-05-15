@@ -179,10 +179,6 @@ api.interceptors.response.use(
     }
 )
 
-// ======================== Export ========================
-
-export default api
-
 // ======================== Topic API Helpers ========================
 
 export const topicApi = {
@@ -201,20 +197,24 @@ export const topicApi = {
   /** 获取订阅状态 */
   getSubscriptionStatus: (id: number) => api.get(`/topics/${id}/subscription-status`),
 
-  /** 分页获取话题文档（Phase 2） */
+  /** 分页获取话题文档 */
   getDocumentsPaged: (id: number, params: { keyword?: string; page?: number; size?: number }) =>
     api.get(`/topics/${id}/documents/paged`, { params }),
 
-  /** 获取推荐话题（Phase 3） */
+  /** 获取推荐话题 */
   getRecommended: (limit = 6) => api.get('/topics/recommended', { params: { limit } }),
 
-  /** 获取热门话题（Phase 3） */
+  /** 获取热门话题 */
   getHot: (limit = 6) => api.get('/topics/hot', { params: { limit } }),
 
-  /** 分页获取公开话题（Phase 3） */
+  /** 分页获取公开话题 */
   getPublicPaged: (params: { keyword?: string; page?: number; size?: number }) =>
     api.get('/topics/public/paged', { params }),
 
-  /** 获取我的订阅列表（Phase 3） */
+  /** 获取我的订阅列表 */
   getMySubscriptions: () => api.get('/topics/subscribed'),
 }
+
+// ======================== Export ========================
+
+export default api

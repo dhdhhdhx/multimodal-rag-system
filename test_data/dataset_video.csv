@@ -1,0 +1,6 @@
+name,file_path,expected_content,description
+短视频,video/test_short.mp4,简单场景,测试短视频处理
+教学视频,video/test_tutorial.mp4,讲解内容,测试教学类视频
+风景视频,video/test_landscape.mp4,自然风景,测试风景类视频
+动画视频,video/test_animation.mp4,动画内容,测试动画类视频
+演讲视频,video/test_speech.mp4,人物演讲,测试演讲类视频

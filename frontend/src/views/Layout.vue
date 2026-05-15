@@ -20,8 +20,8 @@
         </router-link>
         <nav class="nav-links">
           <router-link to="/" exact-active-class="active">首页</router-link>
-          <router-link to="/tags" active-class="active">标签</router-link>
           <router-link to="/topics" active-class="active">话题</router-link>
+          <router-link to="/tags" active-class="active">标签</router-link>
           <router-link to="/search" active-class="active">搜索</router-link>
           <router-link to="/ai" class="ai-link" active-class="active">AI 问答</router-link>
         </nav>
@@ -64,8 +64,8 @@
           </div>
           <nav class="mobile-nav-links">
             <router-link to="/" exact-active-class="active" @click="closeMobileMenu">首页</router-link>
-            <router-link to="/tags" active-class="active" @click="closeMobileMenu">标签</router-link>
             <router-link to="/topics" active-class="active" @click="closeMobileMenu">话题</router-link>
+            <router-link to="/tags" active-class="active" @click="closeMobileMenu">标签</router-link>
             <router-link to="/search" active-class="active" @click="closeMobileMenu">搜索</router-link>
             <router-link to="/ai" class="ai-link" active-class="active" @click="closeMobileMenu">AI 问答</router-link>
             <router-link v-if="isAuthenticated" to="/manage" class="manage-link" active-class="active" @click="closeMobileMenu">管理</router-link>

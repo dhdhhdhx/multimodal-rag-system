@@ -1,0 +1,16 @@
+name,query,expected_category
+QuickBundles算法,QuickBundles是一种用于快速追踪纤维的算法,医学影像
+向量相似度,向量数据库使用余弦相似度计算文档相关性,向量检索
+Transformer架构,Transformer架构的自注意力机制原理,深度学习
+PyTorch张量,PyTorch张量运算与NumPy数组的区别,框架对比
+RAG系统,RAG检索增强生成系统的核心组件,系统架构
+Whisper模型,Whisper语音识别模型支持多语言转写,语音识别
+CLIP模型,CLIP模型如何实现图像与文本的跨模态检索,多模态
+FastAPI框架,如何使用FastAPI构建高性能的RESTful API,后端框架
+多模态嵌入,多模态嵌入技术在智能问答系统中的应用,应用场景
+代码搜索,使用向量嵌入进行代码片段相似度搜索,代码检索
+Python装饰器,Python装饰器的原理和应用场景,编程语言
+二叉树遍历,二叉树的前中后序遍历算法实现,数据结构
+数组去重,JavaScript数组去重的多种实现方法,编程语言
+快速排序,快速排序算法的时间复杂度和空间复杂度分析,算法
+注意力机制,自注意力机制在自然语言处理中的应用,NLP

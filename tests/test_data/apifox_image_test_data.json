@@ -1,0 +1,72 @@
+[
+  {
+    "name": "测试图片1 - 动物",
+    "file": "test_image_cat.jpg",
+    "description": "猫的图片，用于测试CLIP图像识别和标签生成",
+    "expected_tags": ["猫", "动物", "宠物"],
+    "align": true
+  },
+  {
+    "name": "测试图片2 - 风景",
+    "file": "test_image_landscape.jpg",
+    "description": "风景图片，用于测试多色彩场景识别",
+    "expected_tags": ["风景", "自然", "户外"],
+    "align": true
+  },
+  {
+    "name": "测试图片3 - 文档",
+    "file": "test_image_document.jpg",
+    "description": "文档截图，用于测试文档类图片处理",
+    "expected_tags": ["文档", "文字", "页面"],
+    "align": true
+  },
+  {
+    "name": "测试图片4 - 图表",
+    "file": "test_image_chart.jpg",
+    "description": "图表图片，用于测试数据可视化内容识别",
+    "expected_tags": ["图表", "数据", "可视化"],
+    "align": true
+  },
+  {
+    "name": "测试图片5 - 人物",
+    "file": "test_image_person.jpg",
+    "description": "人物照片，用于测试人脸和人物场景",
+    "expected_tags": ["人物", "人脸", "肖像"],
+    "align": true
+  },
+  {
+    "name": "测试图片6 - 建筑",
+    "file": "test_image_building.jpg",
+    "description": "建筑物图片，用于测试建筑结构识别",
+    "expected_tags": ["建筑", "房屋", "结构"],
+    "align": true
+  },
+  {
+    "name": "测试图片7 - 食物",
+    "file": "test_image_food.jpg",
+    "description": "食物图片，用于测试食品识别",
+    "expected_tags": ["食物", "菜肴", "餐饮"],
+    "align": true
+  },
+  {
+    "name": "测试图片8 - 交通工具",
+    "file": "test_image_vehicle.jpg",
+    "description": "交通工具图片，用于测试车辆识别",
+    "expected_tags": ["汽车", "车辆", "交通工具"],
+    "align": true
+  },
+  {
+    "name": "测试图片9 - 植物",
+    "file": "test_image_plant.jpg",
+    "description": "植物图片，用于测试植物识别",
+    "expected_tags": ["植物", "花卉", "自然"],
+    "align": true
+  },
+  {
+    "name": "测试图片10 - 电子产品",
+    "file": "test_image_electronics.jpg",
+    "description": "电子产品图片，用于测试设备识别",
+    "expected_tags": ["电子", "设备", "科技"],
+    "align": true
+  }
+]

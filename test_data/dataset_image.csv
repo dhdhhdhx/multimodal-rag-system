@@ -1,0 +1,11 @@
+name,file_path,expected_tags,description
+风景图片,images/image_001.png,风景,自然,户外,测试风景类图片识别
+动物图片,images/image_002.png,动物,猫,宠物,测试动物类图片识别
+人物图片,images/image_003.png,人物,人脸,肖像,测试人物类图片识别
+建筑图片,images/image_004.png,建筑,房屋,城市,测试建筑类图片识别
+食物图片,images/image_005.png,食物,菜肴,餐饮,测试食物类图片识别
+车辆图片,images/image_006.png,汽车,车辆,交通工具,测试车辆类图片识别
+植物图片,images/image_007.png,植物,花卉,自然,测试植物类图片识别
+电子产品,images/image_008.png,电子,设备,科技,测试电子产品识别
+文档截图,images/image_009.png,文档,文字,页面,测试文档类图片识别
+图表数据,images/image_010.png,图表,数据,可视化,测试图表类图片识别

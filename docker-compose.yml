@@ -28,6 +28,15 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
 
+  # Redis for view count buffering
+  redis:
+    image: redis:7-alpine
+    container_name: multimodal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   # Python AI Service
   python-service:
     build: ./python-services
@@ -52,10 +61,13 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/knowledge_management?useSSL=false&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
       - SPRING_AI_VECTORSTORE_PGVECTOR_DATASOURCE_URL=jdbc:postgresql://vector-db:5432/vector_db
       - MULTIMODAL_PYTHON_SERVICE_BASE_URL=http://python-service:8000
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
     depends_on:
       - mysql-db
       - vector-db
       - python-service
+      - redis
 
   # Vue Frontend Service
   vue-frontend:
@@ -71,3 +83,5 @@ volumes:
     name: multimodal_mysql_data
   pg_data:
     name: multimodal_pgvector_data
+  redis_data:
+    name: multimodal_redis_data

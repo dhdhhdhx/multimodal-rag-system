@@ -40,40 +40,54 @@ description: |
 
 ### 页面设置（A4纸）
 - 纸张大小：11906 × 16838 DXA（A4）
-- 页边距：上2.5cm、下2cm、内侧2cm、外侧2cm、装订线0.5cm
+- 页边距：上2.5cm、下2cm、内侧2.5cm、外侧2cm、装订线0.5cm
 - 页码：摘要目录用罗马数字，正文起阿拉伯数字（-1-格式）
 - 装订：左侧装订
 
 ### 字体字号
 | 位置 | 中文 | 英文/数字 | 大小 |
 |------|------|----------|------|
-| 正文 | 宋体 | Times New Roman | 小四(12pt)/24半磅 |
-| 一级标题 | 黑体 | - | 小三(15pt)/30半磅 |
-| 二级标题 | 黑体 | - | 四号(14pt)/28半磅 |
-| 三级标题 | 黑体 | - | 小四(12pt)/24半磅 |
+| 正文 | 宋体 | Times New Roman | 小四(14pt)/28半磅 |
+| 一级标题 | 黑体 | Arial | 小三(15pt)/30半磅 |
+| 二级标题 | 黑体 | Arial | 四号(14pt)/28半磅 |
+| 三级标题 | 黑体 | Arial | 小四(14pt)/28半磅 |
+| 四级标题 | 宋体 | Times New Roman | 小四(14pt)/28半磅 |
 
 ### 行距与缩进
 - 正文：1.5倍行距
-- 段落：首行缩进2字符（约567 DXA，1字符≈567 DXA @ 小四12pt）
-- 段前段后：不设间距
+- 段落：首行缩进2字符（约567 DXA，1字符≈567 DXA @ 小四14pt）
+- 一级标题：段前间距1行
 - 章节标题前：空一行
 
 ### 标题层级格式
 ```
-一级标题：第X章 XXXX（小三号黑体居中）
+一级标题：第X章 XXXX（小三号黑体居中，段前1行）
 二级标题：X.X XXXX（四号黑体顶格）
 三级标题：X.X.X XXXX（小四号黑体顶格）
-四级标题：（X）（X）（X）（小四号宋体顶格）
-五级标题：不编号，粗体
+四级标题：（1）（2）...（小四号宋体，缩进）
 ```
 
 ### 图表规范
-- **图名**：五号黑体，在图**下方**居中（先放图片，再放图名）
-- 表题：五号黑体，在表上方居中
-- 表格：采用三线表
+- **图名**：五号黑体，在图**下方**居中，单倍行距，段后1行（先放图片，再放图名）
+- **表题**：五号黑体，在表上方居中，单倍行距，段后1行
+- **表格**：采用三线表（上下1.5磅，中间0.75磅，无竖线）
+- **三线表边框代码关键点**：
+  - 顶线/底线：sz="12"（1.5磅）
+  - 中间分割线：sz="6"（0.75磅）
+  - 表级别tblBorders必须设为none，否则会覆盖单元格边框
+  - `borders: tableBorders`（tableBorders所有方向为none）
+- **表内文字**：五号宋体/Times New Roman，单倍行距
 - 图表编号：按章节顺序（如图1.1、表2.3）
 
-**代码实现注意**：插入图片和图名时，必须先放图片，再放图名：
+### 页眉页脚
+- **页眉**：奇数页"南京工业职业技术大学毕业论文（设计）"，偶数页"论文题目"；宋体五号，居中
+- **页脚**：-页码-格式，宋体五号，居中
+- 封面、诚信承诺书：无页码
+- 摘要、目录：小写罗马数字
+- 正文（第一章起）：阿拉伯数字
+
+### 代码实现注意
+插入图片和图名时，必须先放图片，再放图名：
 ```javascript
 // 正确顺序：图片在前，图名在后
 createImagePara("图片路径.png"),  // 图片
@@ -234,7 +248,96 @@ function createH3(text) {
     });
 }
 
-// 创建表格
+// 创建三线表（上下1.5磅，中间0.75磅，无竖线）
+// Word sz单位是1/8磅，所以1.5磅=12, 0.75磅=6
+function createThreeLineTable(headers, rows, widths) {
+    const BORDER_1_5 = { style: BorderStyle.SINGLE, size: 12, color: "000000" };  // 1.5磅
+    const BORDER_0_75 = { style: BorderStyle.SINGLE, size: 6, color: "000000" };   // 0.75磅
+    const BORDER_NONE = { style: BorderStyle.NONE };
+
+    // 表头：顶1.5磅，底0.75磅
+    const headerBorders = {
+        top: BORDER_1_5, bottom: BORDER_0_75,
+        left: BORDER_NONE, right: BORDER_NONE,
+        insideHorizontal: BORDER_NONE, insideVertical: BORDER_NONE
+    };
+    // 数据行：无边框
+    const dataBorders = {
+        top: BORDER_NONE, bottom: BORDER_NONE,
+        left: BORDER_NONE, right: BORDER_NONE,
+        insideHorizontal: BORDER_NONE, insideVertical: BORDER_NONE
+    };
+    // 末行：底1.5磅
+    const lastRowBorders = {
+        top: BORDER_NONE, bottom: BORDER_1_5,
+        left: BORDER_NONE, right: BORDER_NONE
+    };
+    // 表级别边框：无（由单元格控制）
+    const tableBorders = {
+        top: BORDER_NONE, bottom: BORDER_NONE,
+        left: BORDER_NONE, right: BORDER_NONE,
+        insideHorizontal: BORDER_NONE, insideVertical: BORDER_NONE
+    };
+
+    // 计算总宽度
+    const totalWidth = widths.reduce((a, b) => a + b, 0);
+
+    // 表头行
+    const headerCells = headers.map((h, i) =>
+        new TableCell({
+            borders: headerBorders,
+            width: { size: widths[i], type: WidthType.DXA },
+            margins: { top: 60, bottom: 60, left: 100, right: 100 },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { line: 240, lineRule: "exact" },
+                children: [new TextRun({ text: h, font: "黑体", size: FONT_SIZE_FIG || 21, bold: true })]
+            })]
+        })
+    );
+
+    // 数据行（中间行）
+    const dataRows = rows.slice(0, -1).map(row =>
+        new TableRow({
+            children: row.map((cell, i) =>
+                new TableCell({
+                    borders: dataBorders,
+                    width: { size: widths[i], type: WidthType.DXA },
+                    margins: { top: 40, bottom: 40, left: 100, right: 100 },
+                    children: [new Paragraph({
+                        alignment: AlignmentType.LEFT,
+                        spacing: { line: 240, lineRule: "exact" },
+                        children: [new TextRun({ text: cell, font: "宋体", size: FONT_SIZE_FIG || 21 })]
+                    })]
+                })
+            )
+        })
+    );
+
+    // 末行
+    const lastRowCells = rows[rows.length - 1].map((cell, i) =>
+        new TableCell({
+            borders: lastRowBorders,
+            width: { size: widths[i], type: WidthType.DXA },
+            margins: { top: 40, bottom: 40, left: 100, right: 100 },
+            children: [new Paragraph({
+                alignment: AlignmentType.LEFT,
+                spacing: { line: 240, lineRule: "exact" },
+                children: [new TextRun({ text: cell, font: "宋体", size: FONT_SIZE_FIG || 21 })]
+            })]
+        })
+    );
+
+    return new Table({
+        width: { size: totalWidth, type: WidthType.DXA },
+        columnWidths: widths,
+        borders: tableBorders,  // 关键：表级别边框设为none，防止覆盖单元格边框
+        rows: [new TableRow({ children: headerCells }), ...dataRows, new TableRow({ children: lastRowCells })]
+    });
+}
+
+// 创建普通表格（全部边框，用于非三线表场景）
 function createTable(headers, rows, widths) {
     const border = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
     const borders = { top: border, bottom: border, left: border, right: border };
@@ -325,14 +428,14 @@ NODE_PATH="D:/java/nvm/v24.8.0/node_modules" node create_thesis.js
 | `PAGE_HEIGHT` | 16838 | A4高度DXA |
 | `TOP_MARGIN` | 1418 | 上2.5cm |
 | `BOTTOM_MARGIN` | 1134 | 下2cm |
-| `INNER_MARGIN` | 1134 | 内侧2cm |
+| `INNER_MARGIN` | 1418 | 内侧(装订侧)2.5cm |
 | `OUTER_MARGIN` | 1134 | 外侧2cm |
 | `GUTTER` | 284 | 装订线0.5cm |
-| `FONT_SIZE_BODY` | 24 | 小四=12pt |
+| `FONT_SIZE_BODY` | 28 | 小四=14pt |
 | `FONT_SIZE_H1` | 30 | 小三=15pt |
 | `FONT_SIZE_H2` | 28 | 四号=14pt |
 | `LINE_SPACING` | 360 | 1.5倍行距 |
-| `FIRST_LINE_INDENT` | 567 | 首行缩进2字符（1字符≈567 DXA @ 12pt）|
+| `FIRST_LINE_INDENT` | 567 | 首行缩进2字符（1字符≈567 DXA @ 14pt）|
 
 ---
 

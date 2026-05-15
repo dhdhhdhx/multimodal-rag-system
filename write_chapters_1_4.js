@@ -41,6 +41,7 @@ function body(text) {
 // 一级标题：第X章 居中黑体小三
 function h1(text) {
     return new Paragraph({
+        heading: HeadingLevel.HEADING_1,
         spacing: { before: 240, after: 240, line: LINE_SPACING, lineRule: "auto" },
         alignment: AlignmentType.CENTER,
         children: [new TextRun({ text, font: "黑体", size: FONT_SIZE_H1, bold: true })]
@@ -50,6 +51,7 @@ function h1(text) {
 // 二级标题：X.X 顶格黑体四号
 function h2(text) {
     return new Paragraph({
+        heading: HeadingLevel.HEADING_2,
         spacing: { before: 180, after: 180, line: LINE_SPACING, lineRule: "auto" },
         children: [new TextRun({ text, font: "黑体", size: FONT_SIZE_H2, bold: true })]
     });
@@ -58,6 +60,7 @@ function h2(text) {
 // 三级标题：X.X.X 顶格黑体小四
 function h3(text) {
     return new Paragraph({
+        heading: HeadingLevel.HEADING_3,
         spacing: { before: 120, after: 120, line: LINE_SPACING, lineRule: "auto" },
         children: [new TextRun({ text, font: "黑体", size: FONT_SIZE_H3, bold: true })]
     });
@@ -80,11 +83,11 @@ function figCaption(text) {
     });
 }
 
-// 表题（五号黑体，居中）
+// 表题（五号黑体，居中，单倍行距，段后1行）
 function tableTitle(text) {
     return new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 120, after: 60, line: LINE_SPACING, lineRule: "auto" },
+        spacing: { before: 0, after: 200, line: 240, lineRule: "exact" },
         children: [new TextRun({ text, font: "黑体", size: FONT_SIZE_FIG })]
     });
 }
@@ -161,40 +164,83 @@ function getImageSize(buffer) {
 
 // 三线表（表头有底边，末行有顶边和底边）
 function createThreeLineTable(headers, rows, widths) {
+    // 三线表：上下1.5磅(12)，中间0.75磅(6)，无竖线
+    // Word中sz单位是1/8磅，所以1.5磅=12, 0.75磅=6
+    const border1_5 = { style: BorderStyle.SINGLE, size: 12, color: "000000" };  // 1.5磅
+    const border0_75 = { style: BorderStyle.SINGLE, size: 6, color: "000000" };  // 0.75磅
+    const noBorder = { style: BorderStyle.NONE };
+    const tableBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder };
+
+    const headerBorders = {
+        top: border1_5, bottom: border0_75,
+        left: noBorder, right: noBorder,
+        insideHorizontal: noBorder, insideVertical: noBorder
+    };
+    const dataBorders = {
+        top: noBorder, bottom: noBorder,
+        left: noBorder, right: noBorder,
+        insideHorizontal: noBorder, insideVertical: noBorder
+    };
+
     const headerCells = headers.map((h, i) =>
         new TableCell({
-            borders: { top: thinBorder, bottom: { style: BorderStyle.SINGLE, size: 6, color: "000000" }, left: thinBorder, right: thinBorder },
+            borders: headerBorders,
             width: { size: widths[i], type: WidthType.DXA },
-            shading: { fill: "D9D9D9", type: ShadingType.CLEAR },
-            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            margins: { top: 60, bottom: 60, left: 120, right: 120 },
             verticalAlign: VerticalAlign.CENTER,
             children: [new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: h, font: "黑体", size: FONT_SIZE_BODY, bold: true })]
+                spacing: { line: 240, lineRule: "exact" },
+                children: [new TextRun({ text: h, font: "黑体", size: FONT_SIZE_FIG, bold: true })]
             })]
         })
     );
 
-    const dataRows = rows.map(row =>
+    const dataRows = rows.map((row, rowIdx) =>
         new TableRow({
             children: row.map((cell, i) =>
                 new TableCell({
-                    borders,
+                    borders: dataBorders,
                     width: { size: widths[i], type: WidthType.DXA },
-                    margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                    margins: { top: 40, bottom: 40, left: 120, right: 120 },
                     children: [new Paragraph({
                         alignment: AlignmentType.LEFT,
-                        children: [new TextRun({ text: cell, font: "宋体", size: FONT_SIZE_BODY })]
+                        spacing: { line: 240, lineRule: "exact" },
+                        children: [new TextRun({ text: cell, font: "宋体", size: FONT_SIZE_FIG })]
                     })]
                 })
             )
         })
     );
 
+    // 最后一行的底部加1.5磅边框
+    const lastRowBorders = {
+        top: noBorder, bottom: border1_5,
+        left: noBorder, right: noBorder
+    };
+    const lastRow = new TableRow({
+        children: rows[rows.length-1].map((cell, i) =>
+            new TableCell({
+                borders: lastRowBorders,
+                width: { size: widths[i], type: WidthType.DXA },
+                margins: { top: 40, bottom: 40, left: 120, right: 120 },
+                children: [new Paragraph({
+                    alignment: AlignmentType.LEFT,
+                    spacing: { line: 240, lineRule: "exact" },
+                    children: [new TextRun({ text: cell, font: "宋体", size: FONT_SIZE_FIG })]
+                })]
+            })
+        )
+    });
+
+    // 替换最后一行
+    const allRows = [...dataRows.slice(0, -1), lastRow];
+
     return new Table({
         width: { size: CONTENT_WIDTH, type: WidthType.DXA },
         columnWidths: widths,
-        rows: [new TableRow({ children: headerCells }), ...dataRows]
+        borders: tableBorders,
+        rows: [new TableRow({ children: headerCells }), ...allRows]
     });
 }
 
@@ -724,13 +770,13 @@ const doc = new Document({
         paragraphStyles: [
             { id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
               run: { font: "黑体", size: FONT_SIZE_H1, bold: true },
-              paragraph: { spacing: { before: 240, after: 240 }, alignment: AlignmentType.CENTER, outlineLevel: 0 } },
+              paragraph: { spacing: { before: 240, after: 240, line: LINE_SPACING, lineRule: "auto" }, alignment: AlignmentType.CENTER, outlineLevel: 0 } },
             { id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
               run: { font: "黑体", size: FONT_SIZE_H2, bold: true },
-              paragraph: { spacing: { before: 180, after: 180 }, outlineLevel: 1 } },
+              paragraph: { spacing: { before: 180, after: 180, line: LINE_SPACING, lineRule: "auto" }, outlineLevel: 1 } },
             { id: "Heading3", name: "Heading 3", basedOn: "Normal", next: "Normal", quickFormat: true,
               run: { font: "黑体", size: FONT_SIZE_H3, bold: true },
-              paragraph: { spacing: { before: 120, after: 120 }, outlineLevel: 2 } },
+              paragraph: { spacing: { before: 120, after: 120, line: LINE_SPACING, lineRule: "auto" }, outlineLevel: 2 } },
         ]
     },
     sections: [{

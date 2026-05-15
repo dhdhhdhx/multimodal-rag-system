@@ -33,7 +33,59 @@
     </div>
 
     <div class="topics-table-wrapper" v-if="topics.length > 0">
-      <el-table :data="paginatedTopics" stripe>
+      <el-table ref="tableRef" :data="paginatedTopics" stripe row-key="id">
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="expand-docs">
+              <div class="expand-docs-header">
+                <span class="expand-docs-title">话题文档</span>
+                <div class="expand-docs-actions">
+                  <el-button type="primary" size="small" @click="showAddDocDialog(row)">添加文档</el-button>
+                  <el-button link type="primary" size="small" :loading="expandLoading[row.id]" @click="refreshExpandDocs(row.id)">
+                    刷新
+                  </el-button>
+                </div>
+              </div>
+              <div v-if="expandLoading[row.id] && !expandDocs[row.id]" class="expand-docs-loading">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>加载中...</span>
+              </div>
+              <div v-else-if="!expandDocs[row.id] || expandDocs[row.id].length === 0" class="expand-docs-empty">
+                暂无文档
+              </div>
+              <el-table v-else :data="expandDocs[row.id]" size="small" class="expand-docs-table">
+                <el-table-column prop="id" label="ID" width="70" />
+                <el-table-column prop="fileName" label="文件名" min-width="200">
+                  <template #default="{ row: doc }">
+                    <span class="doc-file-name">{{ doc.fileName }}</span>
+                    <el-tag size="small" type="info" style="margin-left: 6px">{{ (doc.fileType || '').toUpperCase() }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="fileSize" label="大小" width="100" align="center">
+                  <template #default="{ row: doc }">
+                    {{ formatFileSize(doc.fileSize) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="90" align="center">
+                  <template #default="{ row: doc }">
+                    <el-tag size="small" :type="doc.status === 'COMPLETED' ? 'success' : doc.status === 'PROCESSING' ? 'warning' : 'info'">
+                      {{ doc.status }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100" align="center">
+                  <template #default="{ row: doc }">
+                    <el-popconfirm title="确定从话题中移除该文档？" @confirm="removeDocFromTopic(row.id, doc.id)">
+                      <template #reference>
+                        <el-button link type="danger" size="small">移除</el-button>
+                      </template>
+                    </el-popconfirm>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="话题名称" min-width="180">
           <template #default="{ row }">
@@ -58,7 +110,7 @@
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="editTopic(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="viewTopic(row)">查看</el-button>
+            <el-button link type="primary" size="small" @click="toggleExpand(row)">查看</el-button>
             <el-popconfirm title="确定要删除此话题吗？" @confirm="deleteTopic(row.id)">
               <template #reference>
                 <el-button link type="danger" size="small">删除</el-button>
@@ -120,16 +172,52 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Add Document Dialog -->
+    <el-dialog v-model="addDocDialogVisible" title="添加文档到话题" width="700px">
+      <div class="add-doc-filters">
+        <el-select v-model="addDocTagFilter" placeholder="按标签筛选" clearable style="width: 180px">
+          <el-option label="全部标签" value="" />
+          <el-option v-for="tag in availableTags" :key="tag" :label="tag" :value="tag" />
+        </el-select>
+        <el-input v-model="addDocSearch" placeholder="搜索文档名称..." clearable style="flex: 1">
+          <template #prefix>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </template>
+        </el-input>
+      </div>
+      <div v-if="addDocLoading" class="add-doc-loading">
+        <el-icon class="is-loading"><Loading /></el-icon>
+        <span>加载可用文档...</span>
+      </div>
+      <el-table v-else :data="filteredAvailableDocs" size="small" max-height="400" row-key="id" @selection-change="handleAddDocSelection">
+        <el-table-column type="selection" width="50" :reserve-selection="true" />
+        <el-table-column prop="id" label="ID" width="70" />
+        <el-table-column prop="fileName" label="文件名" min-width="200" />
+        <el-table-column prop="fileType" label="类型" width="70" align="center">
+          <template #default="{ row }">{{ (row.fileType || '').toUpperCase() }}</template>
+        </el-table-column>
+        <el-table-column prop="fileSize" label="大小" width="90" align="center">
+          <template #default="{ row }">{{ formatFileSize(row.fileSize) }}</template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="addDocDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="addDocsToTopic" :loading="addDocSaving" :disabled="selectedAddDocs.length === 0">
+          添加 ({{ selectedAddDocs.length }})
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import api from '../../api'
-
-const router = useRouter()
 
 const topics = ref<any[]>([])
 const searchKeyword = ref('')
@@ -141,6 +229,22 @@ const dialogVisible = ref(false)
 const editingTopic = ref<any>(null)
 const saving = ref(false)
 
+// Expand row state: topicId -> documents[]
+const expandDocs = ref<Record<number, any[]>>({})
+const expandLoading = ref<Record<number, boolean>>({})
+const tableRef = ref<any>(null)
+
+// Add document dialog state
+const addDocDialogVisible = ref(false)
+const addDocTopicId = ref<number | null>(null)
+const allAvailableDocs = ref<any[]>([])
+const addDocSearch = ref('')
+const selectedAddDocs = ref<any[]>([])
+const addDocLoading = ref(false)
+const addDocSaving = ref(false)
+const availableTags = ref<string[]>([])
+const addDocTagFilter = ref('')
+
 const topicForm = ref({
   name: '',
   description: '',
@@ -150,7 +254,6 @@ const topicForm = ref({
 const filteredTopics = computed(() => {
   let result = topics.value
 
-  // Filter by keyword
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.trim().toLowerCase()
     result = result.filter(t =>
@@ -159,7 +262,6 @@ const filteredTopics = computed(() => {
     )
   }
 
-  // Filter by status
   if (filterStatus.value === 'public') {
     result = result.filter(t => t.isPublic)
   } else if (filterStatus.value === 'private') {
@@ -177,6 +279,13 @@ const paginatedTopics = computed(() => {
 const formatTime = (t: string) => {
   if (!t) return ''
   return new Date(t).toLocaleString('zh-CN')
+}
+
+const formatFileSize = (size: number) => {
+  if (!size) return '-'
+  if (size < 1024) return size + ' B'
+  if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB'
+  return (size / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
 const sortTopics = () => {
@@ -202,6 +311,122 @@ const fetchTopics = async () => {
     console.error('获取话题列表失败:', e)
     ElMessage.error('获取话题列表失败')
   }
+}
+
+const fetchTopicDocuments = async (topicId: number) => {
+  expandLoading.value[topicId] = true
+  try {
+    const res = await api.get(`/topics/${topicId}/documents`)
+    expandDocs.value[topicId] = res.data || []
+  } catch (e) {
+    console.error('获取话题文档失败:', e)
+    expandDocs.value[topicId] = []
+  } finally {
+    expandLoading.value[topicId] = false
+  }
+}
+
+const refreshExpandDocs = async (topicId: number) => {
+  await fetchTopicDocuments(topicId)
+}
+
+const toggleExpand = async (row: any) => {
+  // 先确保行展开
+  if (tableRef.value) {
+    tableRef.value.toggleRowExpansion(row, true)
+  }
+  // 加载文档
+  await fetchTopicDocuments(row.id)
+}
+
+const removeDocFromTopic = async (topicId: number, docId: number) => {
+  try {
+    await api.delete(`/topics/${topicId}/documents/${docId}`)
+    ElMessage.success('已从话题中移除')
+    await fetchTopicDocuments(topicId)
+    await fetchTopics()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '移除失败')
+  }
+}
+
+// --- Add Document to Topic ---
+const filteredAvailableDocs = computed(() => {
+  let result = allAvailableDocs.value
+  // 标签筛选
+  if (addDocTagFilter.value) {
+    result = result.filter(d => {
+      if (!d.tags) return false
+      return d.tags.split(',').map((t: string) => t.trim()).includes(addDocTagFilter.value)
+    })
+  }
+  // 文件名搜索
+  if (addDocSearch.value.trim()) {
+    const kw = addDocSearch.value.trim().toLowerCase()
+    result = result.filter(d => d.fileName.toLowerCase().includes(kw))
+  }
+  return result
+})
+
+const showAddDocDialog = async (topic: any) => {
+  addDocTopicId.value = topic.id
+  addDocSearch.value = ''
+  selectedAddDocs.value = []
+  addDocDialogVisible.value = true
+  addDocLoading.value = true
+  addDocTagFilter.value = ''
+  try {
+    // 获取当前话题已有文档ID，用于过滤
+    const existingDocs = expandDocs.value[topic.id] || []
+    const existingIds = new Set(existingDocs.map((d: any) => d.id))
+    // 获取所有文档
+    const res = await api.get('/knowledge/documents')
+    allAvailableDocs.value = (res.data || []).filter((d: any) => !existingIds.has(d.id))
+    // 提取所有标签
+    const tagSet = new Set<string>()
+    for (const d of allAvailableDocs.value) {
+      if (d.tags) {
+        for (const t of d.tags.split(',')) {
+          const trimmed = t.trim()
+          if (trimmed) tagSet.add(trimmed)
+        }
+      }
+    }
+    availableTags.value = Array.from(tagSet).sort()
+  } catch (e) {
+    console.error('获取文档列表失败:', e)
+    ElMessage.error('获取文档列表失败')
+    allAvailableDocs.value = []
+  } finally {
+    addDocLoading.value = false
+  }
+}
+
+const handleAddDocSelection = (selection: any[]) => {
+  selectedAddDocs.value = selection
+}
+
+const addDocsToTopic = async () => {
+  if (!addDocTopicId.value || selectedAddDocs.value.length === 0) return
+  addDocSaving.value = true
+  let success = 0
+  let failed = 0
+  for (const doc of selectedAddDocs.value) {
+    try {
+      await api.post(`/topics/${addDocTopicId.value}/documents/${doc.id}`)
+      success++
+    } catch (e: any) {
+      failed++
+      console.error(`添加文档 ${doc.id} 失败:`, e)
+    }
+  }
+  addDocSaving.value = false
+  addDocDialogVisible.value = false
+  if (success > 0) ElMessage.success(`成功添加 ${success} 个文档`)
+  if (failed > 0) ElMessage.warning(`${failed} 个文档添加失败`)
+  // 刷新
+  await fetchTopicDocuments(addDocTopicId.value)
+  await fetchTopics()
 }
 
 const showCreateDialog = () => {
@@ -248,14 +473,11 @@ const deleteTopic = async (id: number) => {
   try {
     await api.delete(`/topics/${id}`)
     ElMessage.success('话题已删除')
+    delete expandDocs.value[id]
     await fetchTopics()
   } catch (e: any) {
     ElMessage.error(e.response?.data?.message || '删除失败')
   }
-}
-
-const viewTopic = (topic: any) => {
-  router.push(`/topic/${topic.id}`)
 }
 
 onMounted(() => {
@@ -328,5 +550,68 @@ onMounted(() => {
 
 .admin-empty svg {
   margin-bottom: 12px;
+}
+
+/* Expand row docs */
+.expand-docs {
+  padding: 16px 20px;
+}
+
+.expand-docs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.expand-docs-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expand-docs-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.add-doc-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.add-doc-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.expand-docs-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.expand-docs-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+.expand-docs-table {
+  width: 100%;
+}
+
+.doc-file-name {
+  color: var(--text-primary);
+  font-size: 13px;
 }
 </style>

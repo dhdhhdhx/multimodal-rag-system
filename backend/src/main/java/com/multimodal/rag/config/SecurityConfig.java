@@ -56,9 +56,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/knowledge/public/**").permitAll()
                 .requestMatchers("/api/knowledge/public").permitAll()
-                // 允许查看文档（公开文档可无需认证访问，权限在控制器中检查）
-                .requestMatchers("/api/knowledge/view/**").permitAll()
-                // 公开话题 API - 无需认证（权限在控制器中检查）
                 .requestMatchers("/api/topics/public/**").permitAll()
                 .requestMatchers("/api/topics/hot").permitAll()
                 .requestMatchers("/api/topics/recommended").permitAll()
@@ -72,6 +69,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/notes/**").authenticated()
                 .requestMatchers("/api/annotations/**").authenticated()
                 .requestMatchers("/api/statistics/**").authenticated()
+                .requestMatchers("/api/topics/**").authenticated()
                 // 其他所有请求需要认证
                 .anyRequest().authenticated()
             )

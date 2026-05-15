@@ -1,0 +1,56 @@
+{
+  "name": "多模态RAG系统性能测试数据",
+  "description": "用于Apifox性能测试的测试数据集",
+  "version": "1.0",
+  "data": {
+    "text_queries": [
+      "QuickBundles是一种用于快速追踪纤维的算法",
+      "向量数据库使用余弦相似度计算文档相关性",
+      "深度学习模型在计算机视觉领域的应用",
+      "如何使用FastAPI构建高性能的RESTful API",
+      "Transformer架构的自注意力机制原理",
+      "PyTorch张量运算与NumPy数组的区别",
+      "Whisper语音识别模型支持多语言转写",
+      "CLIP模型如何实现图像与文本的跨模态检索",
+      "RAG检索增强生成系统的核心组件",
+      "多模态嵌入技术在智能问答系统中的应用"
+    ],
+    "edge_cases": {
+      "empty_text": "",
+      "very_long_text": "这是一个非常长的文本，用于测试系统处理长文本的能力。" * 100,
+      "special_chars": "!@#$%^&*()_+-=[]{}|;':\",./<>?~`测试特殊字符",
+      "unicode_text": "测试中文🇨🇳 English 🇺🇸 日本語 🇯🇵 한국어 🇰🇷 العربية 🇸🇦"
+    },
+    "image_descriptions": [
+      "test_image_cat.jpg",
+      "test_image_landscape.jpg",
+      "test_image_document.jpg",
+      "test_image_chart.jpg"
+    ],
+    "audio_files": [
+      "test_audio_speech.mp3",
+      "test_audio_music.wav"
+    ],
+    "video_files": [
+      "test_video_clip.mp4"
+    ]
+  },
+  "performance_thresholds": {
+    "text_embedding": {
+      "max_latency_ms": 1000,
+      "target_throughput_rps": 50
+    },
+    "image_embedding": {
+      "max_latency_ms": 3000,
+      "target_throughput_rps": 10
+    },
+    "audio_transcription": {
+      "max_latency_ms": 5000,
+      "target_throughput_rps": 5
+    },
+    "video_embedding": {
+      "max_latency_ms": 10000,
+      "target_throughput_rps": 2
+    }
+  }
+}

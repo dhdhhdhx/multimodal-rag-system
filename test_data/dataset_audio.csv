@@ -1,0 +1,9 @@
+name,file_path,language,description
+中文语音,audio/test_speech_zh.mp3,zh,测试中文语音转写
+英文语音,audio/test_speech_en.mp3,en,测试英文语音转写
+混合语言,audio/test_speech_mixed.mp3,auto,测试中英文混合转写
+短音频,audio/test_short.wav,zh,测试短音频处理
+长音频,audio/test_long.mp3,zh,测试长音频处理
+背景音,audio/test_with_bg.wav,zh,测试带背景音的音频
+音乐片段,audio/test_music.mp3,instrumental,测试纯音乐识别
+对话录音,audio/test_conversation.mp3,zh,测试多人对话转写

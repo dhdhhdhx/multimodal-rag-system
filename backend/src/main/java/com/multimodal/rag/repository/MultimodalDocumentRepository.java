@@ -4,8 +4,6 @@ import com.multimodal.rag.model.MultimodalDocument;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
@@ -89,18 +87,12 @@ public interface MultimodalDocumentRepository extends JpaRepository<MultimodalDo
     @org.springframework.data.jpa.repository.Query("SELECT d FROM MultimodalDocument d WHERE d.shared = true AND d.status = 'COMPLETED' ORDER BY COALESCE(d.viewCount, 0) DESC")
     List<MultimodalDocument> findHotPublicDocs(Pageable pageable);
 
-    // 查询文档的 ownerId（避免懒加载问题）
+    // Direct owner ID query to avoid lazy-loading issues with ByteBuddyInterceptor
     @org.springframework.data.jpa.repository.Query("SELECT d.user.id FROM MultimodalDocument d WHERE d.id = :id")
     Long findOwnerIdById(@org.springframework.data.repository.query.Param("id") Long id);
 
-    /**
-     * 原子性增加文档浏览次数
-     * @param documentId 文档ID
-     * @param count 增加的次数
-     * @return 更新的行数
-     */
+    // Atomic view count increment
     @Modifying
-    @Query("UPDATE MultimodalDocument d SET d.viewCount = COALESCE(d.viewCount, 0) + :count WHERE d.id = :id")
-    int incrementViewCountBy(@org.springframework.data.repository.query.Param("id") Long documentId,
-                              @org.springframework.data.repository.query.Param("count") Long count);
+    @org.springframework.data.jpa.repository.Query("UPDATE MultimodalDocument d SET d.viewCount = COALESCE(d.viewCount, 0) + :increment WHERE d.id = :id")
+    int incrementViewCountBy(@org.springframework.data.repository.query.Param("id") Long id, @org.springframework.data.repository.query.Param("increment") Long increment);
 }

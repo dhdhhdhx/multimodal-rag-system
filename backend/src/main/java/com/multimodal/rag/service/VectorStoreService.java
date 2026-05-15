@@ -1,13 +1,15 @@
 package com.multimodal.rag.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
+
 import java.util.List;
 import java.util.Map;
 
@@ -18,30 +20,21 @@ public class VectorStoreService {
 
     private final VectorStore vectorStore;
     private final JdbcTemplate vectorJdbcTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void addDocument(String content, Map<String, Object> metadata) {
         log.info("Adding content to vector store with metadata: {}", metadata);
-        Document doc = new Document(content, metadata);
-        vectorStore.add(List.of(doc));
+        vectorStore.add(List.of(new Document(content, metadata)));
     }
 
     /**
-     * Add document with metadata (Python service integration placeholder)
-     * 
-     * Note: Spring AI 1.0.0-M4 doesn't support custom embeddings directly.
-     * For now, we store the content and let Spring AI embed it.
-     * Future: Upgrade to newer Spring AI version with add(List<Document>, List<float[]>) support
-     * 
-     * @param embedding Pre-computed embedding (currently unused, for future use)
-     * @param metadata Document metadata including modality type
+     * Spring AI M4 still owns the final embedding write path in this project.
+     * We keep the method for compatibility and store the retrieval text plus metadata.
      */
     public void addDocumentWithEmbedding(List<Double> embedding, String content, Map<String, Object> metadata) {
-        log.info("Adding document with metadata (embedding dimension: {}), content length: {}, metadata: {}", 
-            embedding.size(), content.length(), metadata);
-        log.warn("Custom embeddings not yet supported in Spring AI 1.0.0-M4. Using default embedding.");
-        
-        Document doc = new Document(content, metadata);
-        vectorStore.add(List.of(doc));
+        int dimension = embedding == null ? 0 : embedding.size();
+        log.info("Adding document with compatible fallback storage, embedding dimension: {}, metadata: {}", dimension, metadata);
+        vectorStore.add(List.of(new Document(content, metadata)));
     }
 
     public List<Document> search(String query, int topK) {
@@ -52,18 +45,12 @@ public class VectorStoreService {
         log.info("Searching vector store for query: '{}', topK: {}, userId: {}", query, topK, userId);
 
         SearchRequest request = SearchRequest.query(query).withTopK(topK);
-
         if (userId != null) {
-            // Filter by userId in metadata.
-            // PGVector stores metadata as JSONB. A Long value becomes a JSON number (e.g. 42),
-            // but Spring AI M4 filter DSL converts expressions to SQL using the text operator ->>,
-            // so we compare against the string representation of the userId.
             String filterExpr = "userId == '" + userId + "'";
             request = request.withFilterExpression(filterExpr);
             log.debug("Using filter expression: {}", filterExpr);
         }
 
-        // Retry up to 3 times on transient I/O errors (e.g. embedding API connection reset)
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
@@ -76,30 +63,76 @@ public class VectorStoreService {
                         || msg.contains("Read timed out");
                 if (isTransient && attempt < maxRetries) {
                     log.warn("Transient error on search attempt {}/{}: {}. Retrying...", attempt, maxRetries, msg);
-                    try { Thread.sleep(500L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    try {
+                        Thread.sleep(500L * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 } else {
                     log.error("Vector search failed after {} attempts: {}", attempt, msg);
                     throw e;
                 }
             }
         }
-        return List.of(); // unreachable
+        return List.of();
     }
 
-    /**
-     * Delete all vector rows for a given documentId.
-     * Uses direct SQL against the PGVector store table to clean up orphaned embeddings.
-     */
+    public List<Document> loadChunkWindow(Long documentId, Integer chunkIndex, int radius) {
+        if (documentId == null || chunkIndex == null || radius < 1) {
+            return List.of();
+        }
+
+        int start = Math.max(0, chunkIndex - radius);
+        int end = chunkIndex + radius;
+
+        try {
+            return vectorJdbcTemplate.query(
+                    """
+                    SELECT content, metadata
+                    FROM vector_store
+                    WHERE metadata->>'documentId' = ?
+                      AND metadata ? 'chunkIndex'
+                      AND CAST(metadata->>'chunkIndex' AS INTEGER) BETWEEN ? AND ?
+                    ORDER BY CAST(metadata->>'chunkIndex' AS INTEGER)
+                    """,
+                    ps -> {
+                        ps.setString(1, documentId.toString());
+                        ps.setInt(2, start);
+                        ps.setInt(3, end);
+                    },
+                    (rs, rowNum) -> new Document(
+                            rs.getString("content"),
+                            parseMetadata(rs.getString("metadata"))
+                    )
+            );
+        } catch (Exception e) {
+            log.debug("Failed to load chunk window for documentId={}, chunkIndex={}: {}", documentId, chunkIndex, e.getMessage());
+            return List.of();
+        }
+    }
+
     public void deleteByDocumentId(Long documentId) {
         log.info("Deleting vectors for documentId: {}", documentId);
         try {
             int deleted = vectorJdbcTemplate.update(
-                "DELETE FROM vector_store WHERE metadata->>'documentId' = ?",
-                documentId.toString()
+                    "DELETE FROM vector_store WHERE metadata->>'documentId' = ?",
+                    documentId.toString()
             );
             log.info("Deleted {} vector rows for documentId: {}", deleted, documentId);
         } catch (Exception e) {
             log.warn("Failed to delete vectors for documentId {}: {}", documentId, e.getMessage());
+        }
+    }
+
+    private Map<String, Object> parseMetadata(String metadataJson) {
+        if (metadataJson == null || metadataJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(metadataJson, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.debug("Failed to parse vector metadata JSON: {}", e.getMessage());
+            return Map.of();
         }
     }
 }
