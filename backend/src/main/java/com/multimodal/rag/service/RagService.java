@@ -4,6 +4,8 @@ import com.multimodal.rag.model.MultimodalDocument;
 import com.multimodal.rag.model.User;
 import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.repository.UserRepository;
+import com.multimodal.rag.service.resilience.CircuitBreaker;
+import com.multimodal.rag.service.resilience.ResilienceManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -52,8 +54,16 @@ public class RagService {
     private final StatisticsService statisticsService;
     private final MultimodalDocumentRepository documentRepository;
     private final UserRepository userRepository;
+    private final ResilienceManager resilienceManager;
 
-    public record RagResult(String answer, List<Map<String, Object>> sources) {}
+    public record RagResult(String answer, List<Map<String, Object>> sources, boolean fallback) {
+        public RagResult {
+        }
+        /** Backward-compatible constructor without fallback flag. */
+        public RagResult(String answer, List<Map<String, Object>> sources) {
+            this(answer, sources, false);
+        }
+    }
 
     public RagResult chatWithSources(String query, Long userId) {
         long startTime = System.currentTimeMillis();
@@ -66,6 +76,7 @@ public class RagService {
         StringBuilder contextBuilder = new StringBuilder();
         List<Map<String, Object>> sources = new ArrayList<>();
         Set<Long> seenDocIds = new HashSet<>();
+        double maxScore = 0;
 
         for (Document doc : retrievedDocuments) {
             String segment = buildContextSegment(doc);
@@ -89,6 +100,22 @@ public class RagService {
             Long docId = asLong(doc.getMetadata().get("documentId"));
             if (docId != null && seenDocIds.add(docId)) {
                 sources.add(buildSourceEntry(doc));
+                // Track max raw score for normalization
+                Object rawScore = doc.getMetadata().get("relevanceScore");
+                if (rawScore instanceof Number) {
+                    maxScore = Math.max(maxScore, ((Number) rawScore).doubleValue());
+                }
+            }
+        }
+
+        // Normalize scores to 0.0-1.0 range based on the best result in this batch
+        if (maxScore > 0) {
+            for (Map<String, Object> src : sources) {
+                Object raw = src.get("score");
+                if (raw instanceof Number) {
+                    double normalized = ((Number) raw).doubleValue() / maxScore;
+                    src.put("score", Math.round(normalized * 100.0) / 100.0);
+                }
             }
         }
 
@@ -102,33 +129,38 @@ public class RagService {
         );
 
         ChatClient chatClient = chatClientBuilder.build();
-        String response = null;
-        int maxRetries = 3;
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                response = chatClient.prompt()
+        final String finalContext = context;
+        final boolean[] llmFallback = {false};
+        String response = resilienceManager.executeWithRetry(
+                "llm-chat",
+                () -> chatClient.prompt()
                         .system(systemPromptWithContext)
                         .user(query)
                         .call()
-                        .content();
-                break;
-            } catch (Exception e) {
-                String msg = e.getMessage() != null ? e.getMessage() : "";
-                boolean isTransient = msg.contains("Connection reset")
-                        || msg.contains("I/O error")
-                        || msg.contains("Read timed out");
-                if (isTransient && attempt < maxRetries) {
-                    log.warn("Transient error on LLM call attempt {}/{}: {}. Retrying...", attempt, maxRetries, msg);
-                    try {
-                        Thread.sleep(1000L * attempt);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+                        .content(),
+                () -> {
+                    // LLM 不可用时的降级回答：基于已检索到的文档返回摘要
+                    llmFallback[0] = true;
+                    log.warn("[RagService] LLM unavailable, generating fallback response with {} sources", sources.size());
+                    if (sources.isEmpty()) {
+                        return "抱歉，当前 AI 服务暂时不可用，且未检索到相关文档。请稍后重试。";
                     }
-                } else {
-                    throw e;
+                    StringBuilder fallback = new StringBuilder();
+                    fallback.append("（AI 服务暂时不可用，以下为检索到的相关文档摘要）\n\n");
+                    for (int i = 0; i < Math.min(sources.size(), 5); i++) {
+                        Map<String, Object> src = sources.get(i);
+                        String fileName = String.valueOf(src.getOrDefault("fileName", "未知文档"));
+                        String excerpt = String.valueOf(src.getOrDefault("excerpt", ""));
+                        fallback.append("  ").append(fileName);
+                        if (!excerpt.isEmpty() && !excerpt.equals("null")) {
+                            fallback.append("\n   ").append(excerpt.length() > 200 ? excerpt.substring(0, 200) + "..." : excerpt);
+                        }
+                        fallback.append("\n\n");
+                    }
+                    fallback.append("以上是为您找到的相关文档，AI 问答功能恢复后将提供更精准的回答。");
+                    return fallback.toString();
                 }
-            }
-        }
+        );
 
         long responseTime = System.currentTimeMillis() - startTime;
         try {
@@ -137,7 +169,9 @@ public class RagService {
             log.warn("Failed to log query statistics", e);
         }
 
-        return new RagResult(response, sources);
+        boolean usedFallback = llmFallback[0]
+                || resilienceManager.getCircuitState("vector-search") != CircuitBreaker.State.CLOSED;
+        return new RagResult(response, sources, usedFallback);
     }
 
     public String chat(String query, Long userId) {
@@ -152,8 +186,20 @@ public class RagService {
         List<String> keywords = extractKeywords(query);
         LinkedHashMap<String, Candidate> candidates = new LinkedHashMap<>();
 
+        // Resilient vector search: retry + circuit breaker + FULLTEXT fallback
+        ResilienceManager.ResilientSearchResult vectorResult = resilienceManager.executeVectorSearch(
+                query,
+                () -> vectorStoreService.search(query, vectorDepth),
+                () -> fulltextFallbackSearch(query, userId, vectorDepth)
+        );
+
+        List<Document> vectorDocuments = vectorResult.documents();
+        if (vectorResult.fallback()) {
+            log.info("[RagService] Using FULLTEXT fallback search (circuit: {})", vectorResult.circuitState());
+        }
+
         int vectorRank = 0;
-        for (Document doc : filterAccessibleDocuments(vectorStoreService.search(query, vectorDepth), userId)) {
+        for (Document doc : filterAccessibleDocuments(vectorDocuments, userId)) {
             rememberCandidate(candidates, doc, true, vectorRank++);
         }
 
@@ -174,6 +220,8 @@ public class RagService {
             if (docId != null && perDocumentCounter.getOrDefault(docId, 0) >= 2) {
                 continue;
             }
+            // Embed score into document metadata so buildSourceEntry can expose it
+            candidate.document().getMetadata().put("relevanceScore", candidate.score);
             selected.add(candidate.document());
             if (docId != null) {
                 perDocumentCounter.put(docId, perDocumentCounter.getOrDefault(docId, 0) + 1);
@@ -231,6 +279,46 @@ public class RagService {
             }
         }
         return filtered;
+    }
+
+    /**
+     * FULLTEXT fallback search when vector DB is unavailable.
+     * Converts query terms to MySQL FULLTEXT boolean mode syntax.
+     */
+    private List<Document> fulltextFallbackSearch(String query, Long userId, int limit) {
+        try {
+            List<String> keywords = extractKeywords(query);
+            if (keywords.isEmpty()) {
+                return List.of();
+            }
+
+            // Build FULLTEXT boolean mode query: each term OR'd together
+            String fulltextQuery = keywords.stream()
+                    .map(kw -> "+" + kw.replace("+", "").replace("-", "").replace("*", ""))
+                    .limit(5) // Cap terms to avoid overly complex queries
+                    .collect(Collectors.joining(" "));
+
+            List<MultimodalDocument> docs = documentRepository.fulltextSearchAccessible(
+                    userId, fulltextQuery, limit);
+
+            return docs.stream()
+                    .map(doc -> {
+                        Map<String, Object> metadata = new LinkedHashMap<>();
+                        metadata.put("documentId", doc.getId());
+                        metadata.put("userId", doc.getOwnerId());
+                        metadata.put("fileName", doc.getFileName());
+                        metadata.put("fileType", doc.getFileType());
+                        metadata.put("sourceType", "fulltext-fallback");
+                        String snippet = doc.getExtractedContent() != null && doc.getExtractedContent().length() > 420
+                                ? doc.getExtractedContent().substring(0, 420) + "..."
+                                : doc.getExtractedContent();
+                        return new Document(snippet != null ? snippet : "", metadata);
+                    })
+                    .toList();
+        } catch (Exception e) {
+            log.error("[RagService] FULLTEXT fallback search failed: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     private List<Document> keywordSearch(String query, Long userId, int limit) {
@@ -397,6 +485,11 @@ public class RagService {
             source.put("section", doc.getMetadata().get("headingPath"));
         }
         source.put("excerpt", buildExcerpt(doc.getContent()));
+        // Pass raw relevance score (will be normalized later)
+        Object rawScore = doc.getMetadata().get("relevanceScore");
+        if (rawScore instanceof Number) {
+            source.put("score", ((Number) rawScore).doubleValue());
+        }
         return source;
     }
 

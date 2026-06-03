@@ -8,6 +8,7 @@ import com.multimodal.rag.repository.DocumentAccessLogRepository;
 import com.multimodal.rag.repository.MultimodalDocumentRepository;
 import com.multimodal.rag.service.KnowledgeService;
 import com.multimodal.rag.service.OssStorageService;
+import com.multimodal.rag.service.ViewCountBufferService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -44,6 +45,7 @@ public class KnowledgeController {
     private final DocumentAccessLogRepository accessLogRepository;
     private final MultimodalDocumentRepository documentRepository;
     private final OssStorageService ossStorageService;
+    private final ViewCountBufferService viewCountBufferService;
 
     private User getCurrentUser() {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
@@ -173,9 +175,8 @@ public class KnowledgeController {
             return ResponseEntity.status(403).body(Map.of("error", "无权查看此文档"));
         }
 
-        // Increment view count
-        doc.setViewCount((doc.getViewCount() != null ? doc.getViewCount() : 0) + 1);
-        documentRepository.save(doc);
+        // Increment view count via Redis buffer
+        viewCountBufferService.recordView(id);
 
         // Log the access
         DocumentAccessLog logEntry = new DocumentAccessLog();
@@ -211,6 +212,7 @@ public class KnowledgeController {
         if (!doc.isShared() && !isOwner && !isAdmin) {
             return ResponseEntity.status(403).body(Map.of("error", "无权查看此文档"));
         }
+        viewCountBufferService.recordView(id);
         return ResponseEntity.ok(buildDetailMap(doc));
     }
 
@@ -313,8 +315,8 @@ public class KnowledgeController {
         if (!doc.isShared()) {
             return ResponseEntity.status(403).body(Map.of("error", "该文档不是公开文档"));
         }
-        doc.setViewCount((doc.getViewCount() != null ? doc.getViewCount() : 0) + 1);
-        documentRepository.save(doc);
+        // Increment view count via Redis buffer
+        viewCountBufferService.recordView(id);
 
         return serveFile(doc, proxy);
     }
@@ -339,6 +341,7 @@ public class KnowledgeController {
         if (!doc.isShared()) {
             return ResponseEntity.status(403).body(Map.of("error", "该文档不是公开文档"));
         }
+        viewCountBufferService.recordView(id);
         return ResponseEntity.ok(buildDetailMap(doc));
     }
 
@@ -364,7 +367,8 @@ public class KnowledgeController {
         detail.put("fileType", doc.getFileType());
         detail.put("extractedContent", doc.getExtractedContent());
         detail.put("tags", doc.getTags());
-        detail.put("viewCount", doc.getViewCount());
+        detail.put("viewCount", (doc.getViewCount() != null ? doc.getViewCount() : 0)
+                + viewCountBufferService.getBufferedViewCount(doc.getId()));
         detail.put("uploadTime", doc.getUploadTime());
         detail.put("isPublic", doc.isShared());
         return detail;

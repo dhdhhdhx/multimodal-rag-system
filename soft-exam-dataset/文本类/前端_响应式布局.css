@@ -1,0 +1,228 @@
+/**
+ * 前端_响应式布局.css
+ * 软件设计师考试 - CSS 布局与响应式设计知识点
+ * 
+ * 本文件展示了现代CSS布局技术，
+ * 包含Flexbox、Grid、媒体查询等考试高频考点。
+ * 
+ * 关联资料：JS组件见《前端_Vue组件示例.js》
+ */
+
+/* ==================== CSS变量（自定义属性） ==================== */
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2ecc71;
+  --danger-color: #e74c3c;
+  --text-color: #333333;
+  --bg-color: #f5f5f5;
+  --border-radius: 8px;
+  --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --max-width: 1200px;
+}
+
+/* ==================== 盒模型 ==================== */
+/*
+ * CSS盒模型：content + padding + border + margin
+ * box-sizing: content-box（默认）→ width只含content
+ * box-sizing: border-box → width包含content+padding+border
+ * 考试重点：border-box更符合直觉，推荐使用
+ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==================== Flexbox 弹性布局 ==================== */
+/*
+ * Flexbox是一维布局模型，适合单行或单列排列
+ * 
+ * 考试知识点：
+ * - justify-content: 主轴对齐（flex-start/flex-end/center/space-between/space-around/space-evenly）
+ * - align-items: 交叉轴对齐（stretch/flex-start/flex-end/center/baseline）
+ * - flex-direction: 主轴方向（row/column/row-reverse/column-reverse）
+ * - flex-wrap: 是否换行（nowrap/wrap/wrap-reverse）
+ * - flex: 1 = flex-grow: 1 + flex-shrink: 1 + flex-basis: 0%
+ */
+
+/* 导航栏 - Flexbox经典应用 */
+.navbar {
+  display: flex;
+  justify-content: space-between;  /* 两端对齐 */
+  align-items: center;            /* 垂直居中 */
+  padding: 0 20px;
+  height: 60px;
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.navbar .logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.navbar .nav-links {
+  display: flex;
+  gap: 20px;                      /* 子元素间距 */
+  list-style: none;
+}
+
+/* ==================== Grid 网格布局 ==================== */
+/*
+ * Grid是二维布局模型，适合行列同时控制的场景
+ * 
+ * 考试知识点：
+ * - grid-template-columns/rows: 定义行列
+ * - grid-column/row: 指定元素占据的网格
+ * - gap: 网格间距
+ * - fr单位: 按比例分配剩余空间
+ * - repeat(): 重复轨道定义
+ */
+
+/* 考试成绩表格布局 */
+.exam-dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);   /* 三等分列 */
+  grid-template-rows: auto 1fr auto;       /* 三行：头/内容/尾 */
+  gap: 20px;                               /* 网格间距 */
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* 侧边栏 + 主内容区域 */
+.page-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;         /* 固定侧边栏 + 自适应主区域 */
+  min-height: 100vh;
+}
+
+.sidebar {
+  grid-column: 1;
+  background-color: #fff;
+  padding: 20px;
+  border-right: 1px solid #ddd;
+}
+
+.main-content {
+  grid-column: 2;
+  padding: 20px;
+}
+
+/* ==================== 媒体查询（响应式设计） ==================== */
+/*
+ * 媒体查询是实现响应式设计的核心技术
+ * 考试知识点：
+ * - @media 媒体类型和条件
+ * - 常用断点：768px（平板）、1024px（桌面）、480px（手机）
+ * - 移动优先 vs 桌面优先策略
+ */
+
+/* 移动端样式（默认 - 移动优先） */
+.exam-dashboard {
+  grid-template-columns: 1fr;  /* 单列布局 */
+  padding: 10px;
+}
+
+/* 平板设备 */
+@media screen and (min-width: 768px) {
+  .exam-dashboard {
+    grid-template-columns: repeat(2, 1fr);  /* 两列布局 */
+    padding: 15px;
+  }
+  
+  .navbar {
+    flex-wrap: wrap;
+  }
+}
+
+/* 桌面设备 */
+@media screen and (min-width: 1024px) {
+  .exam-dashboard {
+    grid-template-columns: repeat(3, 1fr);  /* 三列布局 */
+  }
+  
+  .page-layout {
+    grid-template-columns: 250px 1fr;
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .navbar, .sidebar {
+    display: none;
+  }
+  
+  .main-content {
+    grid-column: 1;
+    padding: 0;
+  }
+}
+
+/* ==================== 定位方式 ==================== */
+/*
+ * 考试知识点：
+ * - static: 默认，正常文档流
+ * - relative: 相对自身偏移，不脱离文档流
+ * - absolute: 相对最近已定位祖先元素，脱离文档流
+ * - fixed: 相对视口定位，脱离文档流
+ * - sticky: 滚动到阈值后固定
+ */
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: white;
+  box-shadow: var(--box-shadow);
+}
+
+/* ==================== CSS选择器优先级 ==================== */
+/*
+ * 优先级从高到低：
+ * !important > 内联样式(1000) > ID选择器(100) > 类选择器(10) > 元素选择器(1)
+ * 
+ * 考试常考：判断样式的最终应用结果
+ */
+
+/* 元素选择器 - 优先级 0-0-1 */
+p { color: #333; }
+
+/* 类选择器 - 优先级 0-1-0 */
+.highlight { color: #e74c3c; }
+
+/* ID选择器 - 优先级 1-0-0 */
+#main-title { color: #3498db; }
+
+/* 后代选择器 - 优先级各部分相加 */
+.navbar a { color: white; }  /* 0-0-1 + 0-0-1 = 0-0-2 */
+.nav-links a { text-decoration: none; }  /* 0-1-0 + 0-0-1 = 0-1-1 */
+
+/* ==================== 动画 ==================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* ==================== CSS3新特性（考试拓展） ==================== */
+/*
+ * 1. 圆角：border-radius
+ * 2. 阴影：box-shadow, text-shadow
+ * 3. 渐变：linear-gradient(), radial-gradient()
+ * 4. 过渡：transition
+ * 5. 变换：transform（translate, rotate, scale）
+ * 6. 伪元素：::before, ::after
+ * 7. 伪类：:hover, :nth-child(), :first-child, :last-child
+ * 
+ * 这些是考试选择题中常见的前端基础知识点
+ */

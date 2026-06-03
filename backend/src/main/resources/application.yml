@@ -85,6 +85,17 @@ multimodal:
     base-url: ${MULTIMODAL_PYTHON_SERVICE_BASE_URL:http://localhost:8000}
     timeout: 900000  # 15 minutes for first-time model loading / large media processing
 
+# Resilience Configuration (retry, backoff, circuit breaker, fallback)
+resilience:
+  max-retries: 3
+  base-delay-ms: 1000
+  max-delay-ms: 8000
+  jitter-factor: 0.2
+  circuit-breaker-failure-threshold: 5
+  circuit-breaker-recovery-timeout-sec: 60
+  circuit-breaker-half-open-test-requests: 1
+  fallback-keyword-limit: 10
+
 # Alibaba Cloud OSS Configuration
 aliyun:
   oss:

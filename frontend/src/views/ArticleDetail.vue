@@ -130,35 +130,14 @@ const renderContent = (content: string) => {
 const viewOriginal = async () => {
   const id = route.params.id as string
   const fileName = article.value?.fileName || '文件'
+
+  // Try authenticated endpoint with proxy mode (backend returns file directly, no redirect)
   const token = getAccessToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
 
-  // Helper: open URL via hidden <a> element so browser handles download natively
-  const openFileLink = (url: string, name: string) => {
-    const a = document.createElement('a')
-    a.href = url
-    a.target = '_blank'
-    a.rel = 'noopener noreferrer'
-    a.download = name
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-  }
-
-  // Try to get a redirect URL from the backend, then let the browser navigate to it
-  // We only use fetch with redirect:'manual' to capture the 302 Location header —
-  // we never fetch the actual file content through JavaScript.
-  const tryOpenViaBackend = async (url: string, headers?: Record<string, string>): Promise<boolean> => {
-    const res = await fetch(url, { headers, redirect: 'manual' })
-    if (res.status === 302 || res.status === 301 || res.status === 307) {
-      const location = res.headers.get('Location')
-      if (location) {
-        openFileLink(location, fileName)
-        return true
-      }
-    }
-    // If backend returned the file directly (proxy mode or seed doc with no file),
-    // it will be text/plain content — open as HTML preview
+  try {
+    const res = await fetch(`/api/knowledge/view/${id}?proxy=true`, { headers })
     if (res.ok) {
       const contentType = res.headers.get('Content-Type') || ''
       if (contentType.includes('text/plain')) {
@@ -170,34 +149,26 @@ const viewOriginal = async () => {
           const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fileName}</title>
             <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.8;white-space:pre-wrap;word-break:break-word;color:#1e293b;background:#f8fafc;}</style></head>
             <body>${escaped}</body></html>`
-          const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-          openFileLink(blobUrl, fileName)
+          window.open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank')
         }
-        return true
+      } else {
+        // Binary file (PDF, image, etc.) — download via blob
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        a.click()
+        URL.revokeObjectURL(url)
       }
+      return
     }
-    if (res.status === 403) { ElMessage.error('无权查看此文件'); return true }
-    if (res.status === 404) { ElMessage.error('文件不存在，可能已被删除'); return true }
-    return false
-  }
-
-  // Strategy 1: Public endpoint (no auth needed for public docs)
-  try {
-    const opened = await tryOpenViaBackend(`/api/knowledge/public/view/${id}`)
-    if (opened) return
+    if (res.status === 403) { ElMessage.error('无权查看此文件'); return }
+    if (res.status === 404) { ElMessage.error('文件不存在，可能已被删除'); return }
   } catch { /* fall through */ }
 
-  // Strategy 2: Authenticated endpoint (use token from centralized store)
-  if (token) {
-    try {
-      const opened = await tryOpenViaBackend(`/api/knowledge/view/${id}`, {
-        'Authorization': `Bearer ${token}`
-      })
-      if (opened) return
-    } catch { /* fall through */ }
-  }
-
-  ElMessage.error('请先登录后查看')
+  // Fallback: public endpoint (open in new tab, browser handles download)
+  window.open(`/api/knowledge/public/view/${id}?proxy=true`, '_blank')
 }
 
 onMounted(async () => {

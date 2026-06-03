@@ -1,0 +1,19 @@
+# ============================================================
+# ECS Production Override
+# Usage: docker compose -f docker-compose.yml -f deploy/docker-compose.ecs.yml up -d
+#
+# This file overrides the dev docker-compose to use pre-built
+# images from ACR instead of local builds.
+# ============================================================
+services:
+  python-service:
+    build: null
+    image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/multimodal-python-service:${ACR_IMAGE_TAG:-latest}
+
+  java-backend:
+    build: null
+    image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/multimodal-java-backend:${ACR_IMAGE_TAG:-latest}
+
+  vue-frontend:
+    build: null
+    image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/multimodal-vue-frontend:${ACR_IMAGE_TAG:-latest}

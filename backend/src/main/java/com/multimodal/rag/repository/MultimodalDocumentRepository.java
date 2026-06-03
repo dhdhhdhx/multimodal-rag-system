@@ -95,4 +95,38 @@ public interface MultimodalDocumentRepository extends JpaRepository<MultimodalDo
     @Modifying
     @org.springframework.data.jpa.repository.Query("UPDATE MultimodalDocument d SET d.viewCount = COALESCE(d.viewCount, 0) + :increment WHERE d.id = :id")
     int incrementViewCountBy(@org.springframework.data.repository.query.Param("id") Long id, @org.springframework.data.repository.query.Param("increment") Long increment);
+
+    // ── MySQL FULLTEXT search (fallback for vector search degradation) ──
+
+    /**
+     * FULLTEXT boolean mode search on extracted_content for accessible documents.
+     * Requires a FULLTEXT INDEX on multimodal_documents(extracted_content).
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT d.* FROM multimodal_documents d
+            WHERE d.status = 'COMPLETED'
+              AND (d.user_id = :userId OR d.is_public = true)
+              AND MATCH(d.extracted_content) AGAINST(:query IN BOOLEAN MODE)
+            ORDER BY COALESCE(d.view_count, 0) DESC, d.upload_time DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<MultimodalDocument> fulltextSearchAccessible(
+            @org.springframework.data.repository.query.Param("userId") Long userId,
+            @org.springframework.data.repository.query.Param("query") String query,
+            @org.springframework.data.repository.query.Param("limit") int limit);
+
+    /**
+     * FULLTEXT boolean mode search on extracted_content for public documents.
+     */
+    @org.springframework.data.jpa.repository.Query(value = """
+            SELECT d.* FROM multimodal_documents d
+            WHERE d.status = 'COMPLETED'
+              AND d.is_public = true
+              AND MATCH(d.extracted_content) AGAINST(:query IN BOOLEAN MODE)
+            ORDER BY COALESCE(d.view_count, 0) DESC, d.upload_time DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<MultimodalDocument> fulltextSearchPublic(
+            @org.springframework.data.repository.query.Param("query") String query,
+            @org.springframework.data.repository.query.Param("limit") int limit);
 }

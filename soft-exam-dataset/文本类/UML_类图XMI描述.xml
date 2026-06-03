@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UML 类图的 XMI 描述示例 - 软件设计师考试 UML 知识点 -->
+<!-- 本文件展示了策略设计模式的 UML 类图结构 -->
+
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1"
+         xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML">
+  <uml:Model name="策略模式_考试示例" xmi:id="model_001">
+    <packagedElement xmi:type="uml:Class" name="Context" xmi:id="class_001">
+      <ownedAttribute xmi:type="uml:Property" name="strategy" xmi:id="attr_001">
+        <type xmi:idref="class_002"/>
+      </ownedAttribute>
+      <ownedOperation xmi:type="uml:Operation" name="contextInterface" xmi:id="op_001">
+        <ownedComment xmi:type="uml:Comment" xmi:id="comment_001">
+          <body>上下文接口方法，委托给策略对象执行</body>
+        </ownedComment>
+      </ownedOperation>
+    </packagedElement>
+
+    <packagedElement xmi:type="uml:Interface" name="Strategy" xmi:id="class_002">
+      <ownedOperation xmi:type="uml:Operation" name="algorithmInterface" xmi:id="op_002"/>
+    </packagedElement>
+
+    <packagedElement xmi:type="uml:Class" name="ConcreteStrategyA" xmi:id="class_003">
+      <interfaceRealization xmi:type="uml:InterfaceRealization"
+                            client="class_003" supplier="class_002"/>
+      <ownedOperation xmi:type="uml:Operation" name="algorithmInterface" xmi:id="op_003">
+        <ownedComment xmi:type="uml:Comment" xmi:id="comment_002">
+          <body>具体策略A的实现 - 例如：快速排序</body>
+        </ownedComment>
+      </ownedOperation>
+    </packagedElement>
+
+    <packagedElement xmi:type="uml:Class" name="ConcreteStrategyB" xmi:id="class_004">
+      <interfaceRealization xmi:type="uml:InterfaceRealization"
+                            client="class_004" supplier="class_002"/>
+      <ownedOperation xmi:type="uml:Operation" name="algorithmInterface" xmi:id="op_004">
+        <ownedComment xmi:type="uml:Comment" xmi:id="comment_003">
+          <body>具体策略B的实现 - 例如：归并排序</body>
+        </ownedComment>
+      </ownedOperation>
+    </packagedElement>
+
+    <packagedElement xmi:type="uml:Class" name="ConcreteStrategyC" xmi:id="class_005">
+      <interfaceRealization xmi:type="uml:InterfaceRealization"
+                            client="class_005" supplier="class_002"/>
+      <ownedOperation xmi:type="uml:Operation" name="algorithmInterface" xmi:id="op_005">
+        <ownedComment xmi:type="uml:Comment" xmi:id="comment_004">
+          <body>具体策略C的实现 - 例如：堆排序</body>
+        </ownedComment>
+      </ownedOperation>
+    </packagedElement>
+
+    <!-- 关系定义 -->
+    <packagedElement xmi:type="uml:Association" name="uses" xmi:id="assoc_001"
+                     memberEnd="attr_001 attr_001_context">
+      <ownedEnd xmi:type="uml:Property" name="context" xmi:id="attr_001_context"
+                type="class_001" association="assoc_001"/>
+      <ownedComment xmi:type="uml:Comment">
+        <body>Context 持有 Strategy 接口的引用（聚合关系）</body>
+      </ownedComment>
+    </packagedElement>
+  </uml:Model>
+</xmi:XMI>
+
+<!--
+  考试知识点总结：
+  1. XMI 是 UML 模型的 XML 交换格式
+  2. 策略模式属于行为型设计模式
+  3. 策略模式核心：定义算法族，分别封装，使它们可以互相替换
+  4. UML 中的关系类型：
+     - 依赖（Dependency）：虚线箭头
+     - 关联（Association）：实线
+     - 聚合（Aggregation）：空心菱形
+     - 组合（Composition）：实心菱形
+     - 泛化（Generalization）：实线三角（继承）
+     - 实现（Realization）：虚线三角（接口实现）
+  5. 关联资料：详见《设计模式_策略模式.java》和《面向对象设计模式.pptx》
+-->

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>软件工程 - 软件开发模型对比 - 软件设计师考试</title>
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #2980b9; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; margin: 15px 0; background: white; }
+        th, td { border: 1px solid #bdc3c7; padding: 10px 12px; text-align: left; }
+        th { background: #3498db; color: white; }
+        tr:nth-child(even) { background: #ecf0f1; }
+        .highlight { background: #fff3cd; padding: 2px 6px; border-radius: 3px; }
+        .important { color: #e74c3c; font-weight: bold; }
+        .tip { background: #d4edda; border-left: 4px solid #28a745; padding: 10px 15px; margin: 15px 0; }
+        .warning { background: #f8d7da; border-left: 4px solid #dc3545; padding: 10px 15px; margin: 15px 0; }
+        ul { line-height: 1.8; }
+    </style>
+</head>
+<body>
+    <h1>软件开发模型对比表</h1>
+    <p>软件设计师考试高频知识点 - 软件生命周期模型</p>
+
+    <h2>一、瀑布模型（Waterfall Model）</h2>
+    <p>最经典的软件生命周期模型，各阶段线性顺序执行。</p>
+    <ul>
+        <li><strong>阶段</strong>：需求分析 → 设计 → 编码 → 测试 → 维护</li>
+        <li><strong>特点</strong>：每个阶段必须完成后才能进入下一阶段</li>
+        <li><span class="important">适用场景</span>：需求明确且稳定的项目</li>
+        <li><strong>缺点</strong>：缺乏灵活性，错误发现晚，返工代价大</li>
+    </ul>
+
+    <div class="warning">
+        <strong>考试注意</strong>：瀑布模型要求每个阶段都产出文档，文档驱动是其核心特征之一。
+    </div>
+
+    <h2>二、增量模型</h2>
+    <p>将软件分成多个增量，每个增量交付一部分功能。</p>
+    <ul>
+        <li><strong>特点</strong>：第一个增量往往是核心产品，逐步增加功能</li>
+        <li><strong>优点</strong>：可以较快交付可用产品，用户能及早反馈</li>
+        <li><strong>缺点</strong>：需要开放式架构，增量集成可能有冲突</li>
+    </ul>
+
+    <h2>三、原型模型</h2>
+    <p>快速构建系统原型，用于明确需求。</p>
+    <ul>
+        <li><strong>类型</strong>：抛弃式原型、演化式原型</li>
+        <li><span class="important">适用场景</span>：需求不明确的项目</li>
+        <li><strong>优点</strong>：降低需求风险，用户参与度高</li>
+    </ul>
+
+    <h2>四、螺旋模型</h2>
+    <p>结合瀑布模型和增量模型的迭代开发方法，强调风险分析。</p>
+    <ul>
+        <li><strong>四个象限</strong>：确定目标 → 风险分析 → 实施工程 → 客户评价</li>
+        <li><strong>适用场景</strong>：大型复杂项目、高风险项目</li>
+        <li><strong>缺点</strong>：需要风险评估专家，成本较高</li>
+    </ul>
+
+    <h2>五、喷泉模型</h2>
+    <p>面向对象的软件开发模型。</p>
+    <ul>
+        <li><strong>特点</strong>：迭代和无间隙，各阶段可以重叠</li>
+        <li><strong>"无间隙"</strong>：开发过程中分析和设计没有明显边界</li>
+        <li><strong>适用场景</strong>：面向对象开发项目</li>
+    </ul>
+
+    <h2>六、模型对比总结</h2>
+    <table>
+        <tr>
+            <th>模型</th>
+            <th>核心特征</th>
+            <th>适用场景</th>
+            <th>主要优点</th>
+            <th>主要缺点</th>
+        </tr>
+        <tr>
+            <td>瀑布模型</td>
+            <td>线性顺序、文档驱动</td>
+            <td>需求明确稳定</td>
+            <td>流程清晰、易于管理</td>
+            <td>灵活性差</td>
+        </tr>
+        <tr>
+            <td>增量模型</td>
+            <td>分批交付</td>
+            <td>需要快速交付核心功能</td>
+            <td>渐进交付</td>
+            <td>架构设计要求高</td>
+        </tr>
+        <tr>
+            <td>原型模型</td>
+            <td>快速构建原型</td>
+            <td>需求不明确</td>
+            <td>明确需求</td>
+            <td>可能忽略质量</td>
+        </tr>
+        <tr>
+            <td>螺旋模型</td>
+            <td>迭代 + 风险分析</td>
+            <td>大型高风险项目</td>
+            <td>风险控制好</td>
+            <td>成本高</td>
+        </tr>
+        <tr>
+            <td>喷泉模型</td>
+            <td>迭代无间隙</td>
+            <td>面向对象项目</td>
+            <td>开发效率高</td>
+            <td>管理复杂</td>
+        </tr>
+        <tr>
+            <td>V模型</td>
+            <td>开发与测试对应</td>
+            <td>质量要求高的项目</td>
+            <td>测试充分</td>
+            <td>灵活性不足</td>
+        </tr>
+        <tr>
+            <td>敏捷模型</td>
+            <td>快速迭代、拥抱变化</td>
+            <td>需求变化频繁</td>
+            <td>快速响应变化</td>
+            <td>文档可能不完整</td>
+        </tr>
+    </table>
+
+    <div class="tip">
+        <strong>考试技巧</strong>：记忆各种模型的适用场景和核心特征是拿分关键。
+        关联资料：详见《软件工程_开发模型对比.docx》获取更详细内容。
+    </div>
+</body>
+</html>

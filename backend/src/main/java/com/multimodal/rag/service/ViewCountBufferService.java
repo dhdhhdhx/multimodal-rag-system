@@ -36,7 +36,7 @@ public class ViewCountBufferService {
             redisTemplate.opsForValue().increment(key);
             // 设置过期时间，防止冷数据永久占用内存
             redisTemplate.expire(key, 24, TimeUnit.HOURS);
-            log.debug("记录文档浏览: {}", documentId);
+            log.info("记录文档浏览: {}", documentId);
         } catch (Exception e) {
             log.warn("Redis 记录浏览失败，降级直接写 MySQL: documentId={}", documentId, e);
             // 降级方案：直接写 MySQL

@@ -2,6 +2,7 @@ package com.multimodal.rag.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.multimodal.rag.service.resilience.ResilienceManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
@@ -20,6 +21,7 @@ public class VectorStoreService {
 
     private final VectorStore vectorStore;
     private final JdbcTemplate vectorJdbcTemplate;
+    private final ResilienceManager resilienceManager;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void addDocument(String content, Map<String, Object> metadata) {
@@ -51,30 +53,10 @@ public class VectorStoreService {
             log.debug("Using filter expression: {}", filterExpr);
         }
 
-        int maxRetries = 3;
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return vectorStore.similaritySearch(request);
-            } catch (Exception e) {
-                String msg = e.getMessage() != null ? e.getMessage() : "";
-                boolean isTransient = msg.contains("Connection reset")
-                        || msg.contains("I/O error")
-                        || msg.contains("Connection refused")
-                        || msg.contains("Read timed out");
-                if (isTransient && attempt < maxRetries) {
-                    log.warn("Transient error on search attempt {}/{}: {}. Retrying...", attempt, maxRetries, msg);
-                    try {
-                        Thread.sleep(500L * attempt);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-                } else {
-                    log.error("Vector search failed after {} attempts: {}", attempt, msg);
-                    throw e;
-                }
-            }
-        }
-        return List.of();
+        final SearchRequest finalRequest = request;
+        return resilienceManager.executeWithRetry("vector-store", () ->
+                vectorStore.similaritySearch(finalRequest)
+        );
     }
 
     public List<Document> loadChunkWindow(Long documentId, Integer chunkIndex, int radius) {

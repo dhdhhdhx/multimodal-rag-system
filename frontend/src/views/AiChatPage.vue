@@ -43,6 +43,10 @@
             <div class="msg-bubble">
               <div class="msg-role">{{ msg.role === 'user' ? '你' : 'AI' }}</div>
               <div class="msg-content" v-html="renderMd(msg.content)"></div>
+              <div v-if="msg.fallback" class="fallback-notice">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                AI 服务暂时不可用，当前为降级检索结果
+              </div>
               <!-- Source reference cards -->
               <div v-if="msg.sources && msg.sources.length" class="msg-sources">
                 <div class="sources-label">
@@ -259,7 +263,12 @@ const sendMessage = async () => {
     const res = await api.post('/chat', body)
 
     const sources = res.data.sources || []
-    chatHistory.value.push({ role: 'ai', content: res.data.answer, sources })
+    chatHistory.value.push({
+      role: 'ai',
+      content: res.data.answer,
+      sources,
+      fallback: res.data.fallback || false
+    })
 
     // Update session id
     if (res.data.sessionId) {
@@ -310,10 +319,14 @@ const getFileTypeClass = (type: string) => {
   return 'ft-default'
 }
 
-const getScorePercent = (score: number) => Math.min(Math.round((score || 0.5) * 100), 99)
+const getScorePercent = (score: number) => {
+  if (score == null || score === undefined) return 0
+  // Backend sends 0.0-1.0 normalized score; cap display at 99%
+  return Math.min(Math.round(score * 100), 99)
+}
 
 const getScoreColor = (score: number) => {
-  const s = score || 0.5
+  const s = score ?? 0
   if (s >= 0.8) return '#10b981'
   if (s >= 0.6) return '#f59e0b'
   return '#ef4444'
@@ -490,6 +503,12 @@ onMounted(fetchSessions)
 .msg-content :deep(p:last-child) { margin: 0; }
 .msg-content :deep(code) { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
 .msg-content :deep(pre) { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 8px; overflow-x: auto; }
+.fallback-notice {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; padding: 6px 10px;
+  font-size: 12px; color: #b45309;
+  background: #fef3c7; border-radius: 6px;
+}
 
 /* Source reference cards */
 .msg-sources {

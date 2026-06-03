@@ -107,11 +107,15 @@ public class ChatController {
         session.setUpdatedAt(java.time.LocalDateTime.now());
         sessionRepository.save(session);
 
-        return ResponseEntity.ok(Map.of(
-                "answer", result.answer(),
-                "sources", result.sources(),
-                "sessionId", session.getId()
-        ));
+        Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("answer", result.answer());
+        response.put("sources", result.sources());
+        response.put("sessionId", session.getId());
+        if (result.fallback()) {
+            response.put("fallback", true);
+        }
+
+        return ResponseEntity.ok(response);
     }
 
     // ===== Session management =====
